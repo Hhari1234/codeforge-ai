@@ -12,3 +12,32 @@ body {
 #root {
   min-height: 100vh;
 }
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  color: #f8fafc;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose p,
+.prose ul,
+.prose ol,
+.prose code {
+  color: #cbd5e1;
+}
+
+.prose code {
+  background: rgba(148, 163, 184, 0.12);
+  padding: 0.15rem 0.3rem;
+  border-radius: 0.3rem;
+}
+
+.prose pre {
+  background: rgba(15, 23, 42, 0.9);
+  padding: 1rem;
+  border-radius: 0.75rem;
+  overflow-x: auto;
+}
