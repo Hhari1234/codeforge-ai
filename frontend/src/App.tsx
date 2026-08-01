@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './hooks/useAuth'
+import CodeExplainerPage from './pages/CodeExplainerPage'
 import LoginPage from './pages/LoginPage'
 import ProjectGeneratorPage from './pages/ProjectGeneratorPage'
 import ReadmeGeneratorPage from './pages/ReadmeGeneratorPage'
@@ -47,6 +48,16 @@ function App() {
             <ProtectedRoute>
               <AppLayout>
                 <ReadmeGeneratorPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/explain"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <CodeExplainerPage />
               </AppLayout>
             </ProtectedRoute>
           }

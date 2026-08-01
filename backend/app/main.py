@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import ai_test, auth, health, project_generator, readme_generator
+from app.api.routes import ai_test, auth, code_explainer, health, project_generator, readme_generator
 from app.core.config import settings
 from app.database.session import Base, engine
-from app.models import project_generation, readme_generation, user  # noqa: F401 - ensures model is registered before create_all
+from app.models import code_explanation, project_generation, readme_generation, user  # noqa: F401 - ensures model is registered before create_all
 
 Base.metadata.create_all(bind=engine)
 
@@ -35,6 +35,11 @@ app.include_router(
     readme_generator.router,
     prefix="/api/readmes",
     tags=["README Generator"],
+)
+app.include_router(
+    code_explainer.router,
+    prefix="/api",
+    tags=["Code Explainer"],
 )
 
 

@@ -36,6 +36,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <NavLink to="/readme/generate" className={navLinkClass}>
             README Generator
           </NavLink>
+          <NavLink to="/explain" className={navLinkClass}>
+            Code Explainer
+          </NavLink>
         </nav>
         <div className="flex items-center gap-4">
           <span className="max-w-[240px] truncate text-sm text-slate-300">{user?.email}</span>

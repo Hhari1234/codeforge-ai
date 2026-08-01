@@ -1,29 +1,35 @@
-# README Generator (Module 2) — TODO
+# Code Explainer (Module 3) — TODO
 
 ## Backend
-- [x] Create `backend/app/models/readme_generation.py`
-- [x] Create `backend/app/schemas/readme_generation.py`
-- [x] Create `backend/app/ai/prompts/readme_generator_prompt.py`
-- [x] Create `backend/app/ai/readme_generator/__init__.py`
-- [x] Create `backend/app/ai/readme_generator/generator.py`
-- [x] Create `backend/app/services/readme_generation_service.py`
-- [x] Create `backend/app/services/readme_upload_processor.py` (zip-bomb-safe extraction)
-- [x] Create `backend/app/api/routes/readme_generator.py`
-- [x] Update `backend/app/main.py` (register model import + router)
+- [x] Create `backend/app/parsers/__init__.py`
+- [x] Create `backend/app/parsers/ast_parser.py` (Python `ast` signature extraction)
+- [x] Create `backend/app/models/code_explanation.py`
+- [x] Create `backend/app/schemas/code_explanation.py`
+- [x] Create `backend/app/ai/prompts/code_explainer_prompt.py`
+- [x] Create `backend/app/ai/code_explainer/__init__.py`
+- [x] Create `backend/app/ai/code_explainer/explainer.py`
+- [x] Create `backend/app/services/code_explanation_service.py`
+- [x] Create `backend/app/api/routes/code_explainer.py` (50KB guard)
+- [x] Update `backend/app/main.py` (register router + model import)
 
 ## Frontend
-- [x] Create `frontend/src/types/readmeGeneration.ts`
-- [x] Create `frontend/src/services/readmeGenerationService.ts`
-- [x] Create `frontend/src/hooks/useReadmeGeneration.ts`
-- [x] Create `frontend/src/components/ReadmeHistoryList.tsx`
-- [x] Create `frontend/src/components/ReadmeResultView.tsx`
-- [x] Create `frontend/src/pages/ReadmeGeneratorPage.tsx`
-- [x] Update `frontend/src/App.tsx` (protected route `/readme/generate`)
-- [x] Update `frontend/src/components/AppLayout.tsx` (nav links)
+- [x] Install Monaco Editor (`@monaco-editor/react`, `monaco-editor`)
+- [x] Create `frontend/src/types/codeExplanation.ts`
+- [x] Create `frontend/src/services/codeExplanationService.ts`
+- [x] Create `frontend/src/hooks/useCodeExplanation.ts`
+- [x] Create `frontend/src/components/CodeExplanationHistoryList.tsx`
+- [x] Create `frontend/src/components/CodeExplanationResultView.tsx`
+- [x] Create `frontend/src/pages/CodeExplainerPage.tsx`
+- [x] Update `frontend/src/App.tsx` (protected route `/explain`)
+- [x] Update `frontend/src/components/AppLayout.tsx` (nav link)
 
 ## Verification
-- [x] `npm run lint` + `npm run build` (frontend)
-- [x] Backend starts cleanly; import check
-- [x] E2E: generation via description + real ZIP, two-user isolation, oversized upload → 400
-- [ ] Show full diff before committing
+- [x] `npm run lint` (frontend)
+- [x] `npm run build` (frontend) — bundle 420.82 kB → 446.60 kB (+26 kB raw, +7 kB gzip; Monaco loads from CDN so minimal impact)
+- [x] Restart backend; confirm clean start + import
+- [x] E2E: real Python file → accurate per-function/class explanations (load_expenses, main, Budget, Expense all explained)
+- [x] E2E: oversized input (>50KB) → clear 400
+- [x] E2E: cross-user isolation (404 on other user's explain)
+- [x] Show full diff before committing
+- [x] Browser-serve verification: `/explain` HTTP 200, Monaco resolved via Vite deps, language IDs (python/js/ts/java), bundle 446.60 kB (gzip 138.51 kB), explanations verified specific to source (not generic filler)
 
