@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
 import ProjectGeneratorPage from './pages/ProjectGeneratorPage'
+import ReadmeGeneratorPage from './pages/ReadmeGeneratorPage'
 import RegisterPage from './pages/RegisterPage'
 
 function HomeRedirect() {
@@ -36,6 +37,16 @@ function App() {
             <ProtectedRoute>
               <AppLayout>
                 <ProjectGeneratorPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/readme/generate"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <ReadmeGeneratorPage />
               </AppLayout>
             </ProtectedRoute>
           }
