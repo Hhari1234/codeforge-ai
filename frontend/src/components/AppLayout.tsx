@@ -39,6 +39,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <NavLink to="/explain" className={navLinkClass}>
             Code Explainer
           </NavLink>
+          <NavLink to="/repository/analyze" className={navLinkClass}>
+            Repository Analyzer
+          </NavLink>
         </nav>
         <div className="flex items-center gap-4">
           <span className="max-w-[240px] truncate text-sm text-slate-300">{user?.email}</span>

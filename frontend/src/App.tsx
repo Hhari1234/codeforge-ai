@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage'
 import ProjectGeneratorPage from './pages/ProjectGeneratorPage'
 import ReadmeGeneratorPage from './pages/ReadmeGeneratorPage'
 import RegisterPage from './pages/RegisterPage'
+import RepositoryAnalyzerPage from './pages/RepositoryAnalyzerPage'
 
 function HomeRedirect() {
   const { isAuthenticated, isInitializing } = useAuth()
@@ -58,6 +59,16 @@ function App() {
             <ProtectedRoute>
               <AppLayout>
                 <CodeExplainerPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/repository/analyze"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <RepositoryAnalyzerPage />
               </AppLayout>
             </ProtectedRoute>
           }
