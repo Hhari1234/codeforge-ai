@@ -17,3 +17,5 @@ Thumbs.db
 *.sln
 *.sw?
 
+# Local agent config — never commit
+.sixth/
