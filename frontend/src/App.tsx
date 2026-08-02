@@ -8,6 +8,7 @@ import ProjectGeneratorPage from './pages/ProjectGeneratorPage'
 import ReadmeGeneratorPage from './pages/ReadmeGeneratorPage'
 import RegisterPage from './pages/RegisterPage'
 import RepositoryAnalyzerPage from './pages/RepositoryAnalyzerPage'
+import RepositoryChatPage from './pages/RepositoryChatPage'
 
 function HomeRedirect() {
   const { isAuthenticated, isInitializing } = useAuth()
@@ -69,6 +70,16 @@ function App() {
             <ProtectedRoute>
               <AppLayout>
                 <RepositoryAnalyzerPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/repository/:analysisId/chat"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <RepositoryChatPage />
               </AppLayout>
             </ProtectedRoute>
           }

@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { RepositoryAnalysisOut } from '../types/repositoryAnalysis'
 
 interface RepositoryAnalysisResultViewProps {
@@ -48,6 +49,7 @@ export default function RepositoryAnalysisResultView({
   isLoading,
   isAnalyzing,
 }: RepositoryAnalysisResultViewProps) {
+  const navigate = useNavigate()
   if (isAnalyzing && !analysis) {
     return (
       <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-slate-400">
@@ -128,6 +130,18 @@ export default function RepositoryAnalysisResultView({
             <p className="text-sm text-slate-400">No suggestions at this time.</p>
           )}
         </Section>
+
+        {analysis && (
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => navigate(`/repository/${analysis.id}/chat`)}
+              className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+            >
+              Chat with this repo
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

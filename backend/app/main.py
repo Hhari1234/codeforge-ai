@@ -9,6 +9,7 @@ from app.api.routes import (
     project_generator,
     readme_generator,
     repository_analyzer,
+    repository_chat,
 )
 from app.core.config import settings
 from app.database.session import Base, engine
@@ -17,6 +18,7 @@ from app.models import (  # noqa: F401 - ensures models are registered before cr
     project_generation,
     readme_generation,
     repository_analysis,
+    repository_chat_message,
     user,
 )
 
@@ -59,6 +61,11 @@ app.include_router(
     repository_analyzer.router,
     prefix="/api/repositories",
     tags=["Repository Analyzer"],
+)
+app.include_router(
+    repository_chat.router,
+    prefix="/api/repositories",
+    tags=["Repository Chat"],
 )
 
 
