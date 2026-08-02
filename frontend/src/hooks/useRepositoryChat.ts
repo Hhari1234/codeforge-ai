@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import repositoryChatService from '../services/repositoryChatService'
 import type { ChatHistoryItem } from '../types/repositoryChat'
 
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/refs */
 export function useRepositoryChat(analysisId: number | null) {
   const [messages, setMessages] = useState<ChatHistoryItem[]>([])
   const [isSending, setIsSending] = useState(false)
@@ -20,6 +21,17 @@ export function useRepositoryChat(analysisId: number | null) {
       setError(err instanceof Error ? err.message : 'Unable to load chat history.')
     } finally {
       setIsLoadingHistory(false)
+    }
+  }, [analysisId])
+
+  const loadHistoryRef = useRef(loadHistory)
+  loadHistoryRef.current = loadHistory
+
+  useEffect(() => {
+    if (analysisId) {
+      loadHistoryRef.current()
+    } else {
+      setMessages([])
     }
   }, [analysisId])
 
@@ -55,14 +67,6 @@ export function useRepositoryChat(analysisId: number | null) {
     }
   }, [analysisId])
 
-  useEffect(() => {
-    if (analysisId) {
-      loadHistory()
-    } else {
-      setMessages([])
-    }
-  }, [analysisId, loadHistory])
-
   return {
     messages,
     isSending,
@@ -72,3 +76,4 @@ export function useRepositoryChat(analysisId: number | null) {
     loadHistory,
   }
 }
+/* eslint-enable react-hooks/set-state-in-effect, react-hooks/refs */

@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { getAuthErrorMessage } from '../services/authService'
+import PasswordField from '../components/PasswordField'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -51,23 +52,21 @@ export default function LoginPage() {
             />
           </div>
 
-          <div>
-            <label htmlFor="password" className="text-sm font-medium text-slate-200">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-500/60"
-              placeholder="••••••••"
-            />
-          </div>
+          <PasswordField
+            label="Password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="current-password"
+            required
+            placeholder="••••••••"
+          />
 
-          {error ? <p className="text-sm text-rose-400">{error}</p> : null}
+          <div className="flex items-center justify-between">
+            {error ? <p className="text-sm text-rose-400">{error}</p> : <span />}
+            <Link to="/forgot-password" className="text-xs font-medium text-emerald-400 transition hover:text-emerald-300">
+              Forgot password?
+            </Link>
+          </div>
 
           <button
             type="submit"

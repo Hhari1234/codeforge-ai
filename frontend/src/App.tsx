@@ -3,12 +3,14 @@ import AppLayout from './components/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './hooks/useAuth'
 import CodeExplainerPage from './pages/CodeExplainerPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import LoginPage from './pages/LoginPage'
 import ProjectGeneratorPage from './pages/ProjectGeneratorPage'
 import ReadmeGeneratorPage from './pages/ReadmeGeneratorPage'
 import RegisterPage from './pages/RegisterPage'
 import RepositoryAnalyzerPage from './pages/RepositoryAnalyzerPage'
 import RepositoryChatPage from './pages/RepositoryChatPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 function HomeRedirect() {
   const { isAuthenticated, isInitializing } = useAuth()
@@ -34,6 +36,8 @@ function App() {
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route
           path="/projects/generate"
           element={

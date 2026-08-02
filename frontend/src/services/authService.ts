@@ -46,8 +46,6 @@ const authService = {
   },
 
   async login(email: string, password: string): Promise<Token> {
-    // Backend /auth/login uses OAuth2PasswordRequestForm → expects a
-    // form-urlencoded body with `username` / `password` fields.
     const form = new URLSearchParams()
     form.append('username', email.trim())
     form.append('password', password)
@@ -62,6 +60,15 @@ const authService = {
   async getCurrentUser(): Promise<UserOut> {
     const { data } = await api.get<UserOut>('/auth/me')
     return data
+  },
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const { data } = await api.post<{ message: string }>('/auth/forgot-password', { email })
+    return data
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    await api.post('/auth/reset-password', { token, new_password: newPassword })
   },
 }
 
