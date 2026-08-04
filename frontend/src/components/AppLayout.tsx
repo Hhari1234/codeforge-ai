@@ -39,6 +39,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <NavLink to="/explain" className={navLinkClass}>
             Code Explainer
           </NavLink>
+          <NavLink to="/code/review" className={navLinkClass}>
+            Code Reviewer
+          </NavLink>
+          <NavLink to="/debug" className={navLinkClass}>
+            Bug Debugger
+          </NavLink>
+          <NavLink to="/documentation" className={navLinkClass}>
+            API Docs
+          </NavLink>
           <NavLink to="/repository/analyze" className={navLinkClass}>
             Repository Analyzer
           </NavLink>

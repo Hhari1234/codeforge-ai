@@ -5,8 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import (
     ai_test,
+    api_documentation,
     auth,
+    bug_debug,
     code_explainer,
+    code_review,
     health,
     project_generator,
     readme_generator,
@@ -16,7 +19,10 @@ from app.api.routes import (
 from app.core.config import settings
 from app.database.session import Base, engine
 from app.models import (  # noqa: F401 - ensures models are registered before create_all
+    api_documentation as api_documentation_model,
+    bug_debug as bug_debug_model,
     code_explanation,
+    code_review as code_review_model,
     project_generation,
     readme_generation,
     repository_analysis,
@@ -70,6 +76,21 @@ app.include_router(
     repository_chat.router,
     prefix="/api/repositories",
     tags=["Repository Chat"],
+)
+app.include_router(
+    code_review.router,
+    prefix="/api/reviews",
+    tags=["Code Reviewer"],
+)
+app.include_router(
+    bug_debug.router,
+    prefix="/api/debug",
+    tags=["Bug Debugger"],
+)
+app.include_router(
+    api_documentation.router,
+    prefix="/api/documentation",
+    tags=["API Documentation Generator"],
 )
 
 

@@ -2,7 +2,10 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './hooks/useAuth'
+import ApiDocumentationPage from './pages/ApiDocumentationPage'
+import BugDebuggerPage from './pages/BugDebuggerPage'
 import CodeExplainerPage from './pages/CodeExplainerPage'
+import CodeReviewPage from './pages/CodeReviewPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import LoginPage from './pages/LoginPage'
 import ProjectGeneratorPage from './pages/ProjectGeneratorPage'
@@ -64,6 +67,36 @@ function App() {
             <ProtectedRoute>
               <AppLayout>
                 <CodeExplainerPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+<Route
+          path="/code/review"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <CodeReviewPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/debug"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <BugDebuggerPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/documentation"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <ApiDocumentationPage />
               </AppLayout>
             </ProtectedRoute>
           }
