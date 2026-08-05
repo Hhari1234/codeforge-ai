@@ -1,3 +1,5 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
 fastapi==0.115.0
 uvicorn[standard]==0.31.0
 sqlalchemy==2.0.35
@@ -13,3 +15,4 @@ email-validator==2.3.0
 GitPython==3.1.57
 sentence-transformers==3.4.1
 chromadb==0.6.3
+psycopg2-binary==2.9.10
