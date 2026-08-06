@@ -1,0 +1,64 @@
+# Render Blueprint for CodeForge-AI
+# Services are built fresh in isolation on Render — no local port conflicts.
+# Secrets below are PLACEHOLDERS. Set the real values in Render's dashboard
+# (Environment tab) after first deploy. Never commit real secrets.
+
+databases:
+  - name: codeforge-db
+    region: oregon
+    databaseName: codeforge
+    user: codeforge
+    plan: free
+    ipAllowList: [] # allow only internal apps
+
+services:
+  # ---- Backend API (FastAPI) ----
+  - type: web
+    name: codeforge-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: codeforge-db
+          property: connectionString
+      - key: SECRET_KEY
+        sync: false
+        value: REPLACE_WITH_RANDOM_SECRET
+      - key: OPENROUTER_API_KEY
+        sync: false
+        value: REPLACE_WITH_OPENROUTER_KEY
+      - key: OPENROUTER_MODEL
+        value: anthropic/claude-3.5-haiku
+      - key: FRONTEND_ORIGIN
+        value: https://codeforge-frontend.onrender.com
+      - key: FRONTEND_URL
+        value: https://codeforge-frontend.onrender.com
+      - key: SMTP_HOST
+        sync: false
+        value: REPLACE_WITH_SMTP_HOST
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+        value: REPLACE_WITH_SMTP_USERNAME
+      - key: SMTP_PASSWORD
+        sync: false
+        value: REPLACE_WITH_SMTP_PASSWORD
+      - key: SMTP_FROM_EMAIL
+        sync: false
+        value: REPLACE_WITH_SMTP_FROM_EMAIL
+    healthCheckPath: /api/health
+
+  # ---- Frontend (React / Nginx) ----
+  - type: web
+    name: codeforge-frontend
+    runtime: docker
+    plan: free
+    region: oregon
+    envVars:
+      - key: VITE_API_URL
+        value: https://codeforge-backend.onrender.com/api
+    dockerContext: ./frontend
+    dockerfilePath: ./frontend/Dockerfile

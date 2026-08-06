@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+codeforge.db
+chroma_data/
+uploads/
+test_*.py
+*_e2e.py
+.git/

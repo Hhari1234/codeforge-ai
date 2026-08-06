@@ -19,3 +19,15 @@ Thumbs.db
 
 # Local agent config — never commit
 .sixth/
+.kilo/
+
+# Debug / log artifacts
+*.txt
+backend/chroma_data/
+backend/tmp_chroma_data_vs/
+backend/uploads/
+backend/test_*.py
+backend/check_*.py
+backend/debug_email.py
+backend/investigate_email.py
+backend/verify_chat.py
