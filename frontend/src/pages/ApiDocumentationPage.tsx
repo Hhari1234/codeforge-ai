@@ -1,7 +1,14 @@
 import { type FormEvent, useState } from 'react'
-import DocumentationHistoryList from '../components/DocumentationHistoryList'
+import { FileCode2 } from 'lucide-react'
 import DocumentationResultView from '../components/DocumentationResultView'
 import { useApiDocumentation } from '../hooks/useApiDocumentation'
+import { PageHeader } from '../components/ui/PageHeader'
+import { Card, CardContent } from '../components/ui/Card'
+import { Input } from '../components/ui/Input'
+import { Button } from '../components/ui/Button'
+import { HistoryPanel } from '../components/ui/HistoryPanel'
+import { Tabs } from '../components/ui/Tabs'
+import { FileUpload } from '../components/ui/FileUpload'
 
 type Mode = 'github' | 'zip' | 'file' | 'openapi'
 
@@ -15,17 +22,16 @@ const MODE_TABS: { value: Mode; label: string }[] = [
 export default function ApiDocumentationPage() {
   const [mode, setMode] = useState<Mode>('github')
   const [repoUrl, setRepoUrl] = useState('')
-  const [zipFile, setZipFile] = useState<File | null>(null)
-  const [sourceFile, setSourceFile] = useState<File | null>(null)
-  const [openApiFile, setOpenApiFile] = useState<File | null>(null)
+  const [zipFile, setZipFile] = useState<File[]>([])
+  const [sourceFile, setSourceFile] = useState<File[]>([])
+  const [openApiFile, setOpenApiFile] = useState<File[]>([])
   const {
     docs,
     selectedDoc,
     isHistoryLoading,
     isGenerating,
     error,
-    selectDocById,
-    deleteDoc,
+selectDocById,
     analyzeGithub,
     analyzeZip,
     analyzeFile,
@@ -38,150 +44,130 @@ export default function ApiDocumentationPage() {
       if (!repoUrl.trim()) return
       await analyzeGithub(repoUrl.trim())
     } else if (mode === 'zip') {
-      if (!zipFile) return
-      await analyzeZip(zipFile)
+      if (!zipFile[0]) return
+      await analyzeZip(zipFile[0])
     } else if (mode === 'file') {
-      if (!sourceFile) return
-      await analyzeFile(sourceFile)
+      if (!sourceFile[0]) return
+      await analyzeFile(sourceFile[0])
     } else {
-      if (!openApiFile) return
-      await analyzeOpenApi(openApiFile)
+      if (!openApiFile[0]) return
+      await analyzeOpenApi(openApiFile[0])
     }
   }
 
   return (
-    <div className="mx-auto max-w-7xl">
-      <div className="mb-8 flex flex-col gap-3">
-        <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Module 9</p>
-        <h1 className="text-3xl font-semibold text-slate-100">API Documentation Generator</h1>
-        <p className="max-w-2xl text-sm text-slate-400">
-          Point it at a public GitHub URL, upload a ZIP, upload a single source file, or provide an
-          OpenAPI/Swagger spec. The AI detects the framework and produces professional API
-          documentation with endpoints, parameters, examples, and export to Markdown / HTML / PDF.
-        </p>
-      </div>
+    <div>
+      <PageHeader
+        eyebrow="Module 9"
+        title="API Documentation Generator"
+        description="Point it at a public GitHub URL, upload a ZIP, upload a single source file, or provide an OpenAPI/Swagger spec. The AI detects the framework and produces professional API documentation with endpoints, parameters, examples, and export to Markdown / HTML / PDF."
+      />
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <aside className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-100">History</h2>
-            <span className="text-sm text-slate-500">{docs.length} saved</span>
-          </div>
-          <DocumentationHistoryList
-            docs={docs}
-            selectedId={selectedDoc?.id ?? null}
-            onSelect={selectDocById}
-            onDelete={deleteDoc}
-            isLoading={isHistoryLoading}
-          />
-        </aside>
+        <HistoryPanel
+          title="History"
+          items={docs.map((d) => ({
+            id: d.id,
+            title: d.repo_source,
+            subtitle: new Date(d.created_at).toLocaleDateString(),
+          }))}
+          selectedId={selectedDoc?.id ?? null}
+          onSelect={selectDocById}
+          isLoading={isHistoryLoading}
+          count={docs.length}
+          emptyTitle="No documentation yet"
+          emptyDescription="Generate API docs to see your results here."
+        />
 
         <section className="space-y-6">
-          <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-            <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/60 p-1">
-              {MODE_TABS.map((tab) => (
-                <button
-                  key={tab.value}
-                  type="button"
-                  onClick={() => setMode(tab.value)}
-                  className={`flex-1 rounded-lg px-3 py-1.5 text-sm transition ${
-                    mode === tab.value
-                      ? 'bg-emerald-500/15 text-emerald-300'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {mode === 'github' ? (
-              <div>
-                <label htmlFor="docs-repo-url" className="text-sm font-medium text-slate-200">
-                  Public GitHub repository URL
-                </label>
-                <input
-                  id="docs-repo-url"
-                  type="text"
-                  value={repoUrl}
-                  onChange={(event) => setRepoUrl(event.target.value)}
-                  placeholder="https://github.com/owner/repo"
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-sm text-slate-100 outline-none ring-0 placeholder:text-slate-500"
-                />
-              </div>
-            ) : mode === 'zip' ? (
-              <div>
-                <label htmlFor="docs-zip-file" className="text-sm font-medium text-slate-200">
-                  Repository ZIP archive
-                </label>
-                <input
-                  id="docs-zip-file"
-                  type="file"
-                  accept=".zip"
-                  onChange={(event) => setZipFile(event.target.files?.[0] ?? null)}
-                  className="mt-3 block w-full text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-800 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-100 hover:file:bg-slate-700"
-                />
-                {zipFile ? (
-                  <p className="mt-2 text-xs text-slate-400">Selected: {zipFile.name}</p>
-                ) : null}
-              </div>
-            ) : mode === 'file' ? (
-              <div>
-                <label htmlFor="docs-source-file" className="text-sm font-medium text-slate-200">
-                  Source file (single file)
-                </label>
-                <input
-                  id="docs-source-file"
-                  type="file"
-                  accept=".py,.js,.jsx,.ts,.tsx,.java,.go,.rs,.rb,.php,.cs,.kt,.swift,*.cs,.csproj"
-                  onChange={(event) => setSourceFile(event.target.files?.[0] ?? null)}
-                  className="mt-3 block w-full text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-800 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-100 hover:file:bg-slate-700"
-                />
-                {sourceFile ? (
-                  <p className="mt-2 text-xs text-slate-400">Selected: {sourceFile.name}</p>
-                ) : null}
-              </div>
-            ) : (
-              <div>
-                <label htmlFor="docs-openapi-file" className="text-sm font-medium text-slate-200">
-                  OpenAPI / Swagger spec (JSON or YAML)
-                </label>
-                <input
-                  id="docs-openapi-file"
-                  type="file"
-                  accept=".json,.yaml,.yml"
-                  onChange={(event) => setOpenApiFile(event.target.files?.[0] ?? null)}
-                  className="mt-3 block w-full text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-800 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-100 hover:file:bg-slate-700"
-                />
-                {openApiFile ? (
-                  <p className="mt-2 text-xs text-slate-400">Selected: {openApiFile.name}</p>
-                ) : null}
-              </div>
-            )}
-
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button
-                type="submit"
-                disabled={isGenerating}
-                className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-800"
-              >
-                {isGenerating ? 'Generating...' : 'Generate Documentation'}
-              </button>
-              {isGenerating ? (
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
-                  Analyzing API, this may take a minute...
+          <Card glow>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="mb-1 flex items-center gap-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-blue-500 text-white">
+                    <FileCode2 size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-100">Generate Documentation</h3>
+                    <p className="text-xs text-slate-500">Analyze your API and produce professional docs</p>
+                  </div>
                 </div>
-              ) : null}
-            </div>
-            {error ? <p className="mt-4 text-sm text-rose-400">{error}</p> : null}
-          </form>
 
-          <DocumentationResultView
-            doc={selectedDoc}
-            isLoading={isHistoryLoading}
-            isGenerating={isGenerating}
-          />
+                <Tabs<Mode> items={MODE_TABS} value={mode} onChange={setMode} />
+
+                {mode === 'github' ? (
+                  <Input
+                    id="docs-repo-url"
+                    label="Public GitHub repository URL"
+                    type="text"
+                    value={repoUrl}
+                    onChange={(event) => setRepoUrl(event.target.value)}
+                    placeholder="https://github.com/owner/repo"
+                  />
+                ) : mode === 'zip' ? (
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-slate-200">Repository ZIP archive</p>
+                    <FileUpload
+                      accept=".zip"
+                      label="Drag & drop your repository ZIP here"
+                      hint="Upload a ZIP archive of your repository"
+                      onFilesChange={setZipFile}
+                    />
+                  </div>
+                ) : mode === 'file' ? (
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-slate-200">Source file (single file)</p>
+                    <FileUpload
+                      accept=".py,.js,.jsx,.ts,.tsx,.java,.go,.rs,.rb,.php,.cs,.kt,.swift"
+                      label="Drag & drop a source file here"
+                      hint="Upload a single source file to analyze"
+                      onFilesChange={setSourceFile}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-slate-200">OpenAPI / Swagger spec (JSON or YAML)</p>
+                    <FileUpload
+                      accept=".json,.yaml,.yml"
+                      label="Drag & drop your OpenAPI spec here"
+                      hint="Upload a JSON or YAML OpenAPI spec"
+                      onFilesChange={setOpenApiFile}
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="submit"
+                    variant="gradient"
+                    loading={isGenerating}
+                    disabled={
+                      mode === 'github'
+                        ? !repoUrl.trim()
+                        : mode === 'zip'
+                          ? !zipFile[0]
+                          : mode === 'file'
+                            ? !sourceFile[0]
+                            : !openApiFile[0]
+                    }
+                  >
+                    {isGenerating ? 'Generating...' : 'Generate Documentation'}
+                  </Button>
+                  {isGenerating ? (
+                    <p className="text-sm text-slate-400">Analyzing API, this may take a minute...</p>
+                  ) : null}
+                </div>
+
+                {error ? (
+                  <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+                    {error}
+                  </div>
+                ) : null}
+              </form>
+            </CardContent>
+          </Card>
+
+          <DocumentationResultView doc={selectedDoc} isLoading={isHistoryLoading} isGenerating={isGenerating} />
         </section>
       </div>
     </div>

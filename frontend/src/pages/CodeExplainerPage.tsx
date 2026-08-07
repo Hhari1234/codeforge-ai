@@ -1,8 +1,13 @@
 import { useMemo, useState } from 'react'
 import Editor from '@monaco-editor/react'
-import CodeExplanationHistoryList from '../components/CodeExplanationHistoryList'
+import { Wand2, Upload } from 'lucide-react'
 import CodeExplanationResultView from '../components/CodeExplanationResultView'
 import { useCodeExplanation } from '../hooks/useCodeExplanation'
+import { PageHeader } from '../components/ui/PageHeader'
+import { Card, CardContent } from '../components/ui/Card'
+import { Input, Select } from '../components/ui/Input'
+import { Button } from '../components/ui/Button'
+import { HistoryPanel } from '../components/ui/HistoryPanel'
 
 const LANGUAGE_OPTIONS = [
   { value: 'python', label: 'Python', monaco: 'python' },
@@ -30,37 +35,14 @@ const LANGUAGE_OPTIONS = [
   { value: 'plaintext', label: 'Plain Text', monaco: 'plaintext' },
 ]
 
-// filename → language value auto-selection for uploads
 const EXTENSION_TO_LANGUAGE: Record<string, string> = {
-  '.py': 'python',
-  '.pyw': 'python',
-  '.js': 'javascript',
-  '.jsx': 'jsx',
-  '.ts': 'typescript',
-  '.tsx': 'tsx',
-  '.java': 'java',
-  '.go': 'go',
-  '.rs': 'rust',
-  '.c': 'c',
-  '.h': 'c',
-  '.cpp': 'cpp',
-  '.hpp': 'cpp',
-  '.cs': 'csharp',
-  '.rb': 'ruby',
-  '.php': 'php',
-  '.swift': 'swift',
-  '.kt': 'kotlin',
-  '.html': 'html',
-  '.htm': 'html',
-  '.css': 'css',
-  '.scss': 'css',
-  '.sh': 'shell',
-  '.bash': 'shell',
-  '.sql': 'sql',
-  '.json': 'json',
-  '.yaml': 'yaml',
-  '.yml': 'yaml',
-  '.md': 'markdown',
+  '.py': 'python', '.pyw': 'python', '.js': 'javascript', '.jsx': 'jsx',
+  '.ts': 'typescript', '.tsx': 'tsx', '.java': 'java', '.go': 'go',
+  '.rs': 'rust', '.c': 'c', '.h': 'c', '.cpp': 'cpp', '.hpp': 'cpp',
+  '.cs': 'csharp', '.rb': 'ruby', '.php': 'php', '.swift': 'swift',
+  '.kt': 'kotlin', '.html': 'html', '.htm': 'html', '.css': 'css',
+  '.scss': 'css', '.sh': 'shell', '.bash': 'shell', '.sql': 'sql',
+  '.json': 'json', '.yaml': 'yaml', '.yml': 'yaml', '.md': 'markdown',
   '.txt': 'plaintext',
 }
 
@@ -117,123 +99,123 @@ export default function CodeExplainerPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl">
-      <div className="mb-8 flex flex-col gap-3">
-        <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Module 3</p>
-        <h1 className="text-3xl font-semibold text-slate-100">Code Explainer</h1>
-        <p className="max-w-2xl text-sm text-slate-400">
-          Paste or upload a single source file. The AI explains every function, class, and the
-          overall flow — with syntax highlighting powered by Monaco.
-        </p>
-      </div>
+    <div>
+      <PageHeader
+        eyebrow="Module 3"
+        title="Code Explainer"
+        description="Paste or upload a single source file. The AI explains every function, class, and the overall flow — with syntax highlighting powered by Monaco."
+      />
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <aside className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-100">History</h2>
-            <span className="text-sm text-slate-500">{explanations.length} saved</span>
-          </div>
-          <CodeExplanationHistoryList
-            explanations={explanations}
-            selectedId={selectedExplanation?.id ?? null}
-            onSelect={selectExplanationById}
-            isLoading={isHistoryLoading}
-          />
-        </aside>
+        <HistoryPanel
+          title="History"
+          items={explanations.map((e) => ({
+            id: e.id,
+            title: e.filename,
+            subtitle: e.language,
+          }))}
+          selectedId={selectedExplanation?.id ?? null}
+          onSelect={selectExplanationById}
+          isLoading={isHistoryLoading}
+          count={explanations.length}
+          emptyTitle="No explanations yet"
+          emptyDescription="Paste or upload a file to get a structured code explanation."
+        />
 
         <section className="space-y-6">
-          <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-            <div className="grid gap-4 sm:grid-cols-[1fr_220px_auto]">
-              <div>
-                <label htmlFor="filename" className="text-sm font-medium text-slate-200">
-                  Filename
-                </label>
-                <input
-                  id="filename"
-                  type="text"
-                  value={filename}
-                  onChange={(event) => setFilename(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2.5 text-sm text-slate-100 outline-none ring-0 placeholder:text-slate-500"
-                />
-              </div>
-              <div>
-                <label htmlFor="language" className="text-sm font-medium text-slate-200">
-                  Language
-                </label>
-                <select
-                  id="language"
-                  value={language}
-                  onChange={(event) => setLanguage(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-slate-100 outline-none ring-0"
-                >
-                  {LANGUAGE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end">
-                <label
-                  htmlFor="source-file"
-                  className="cursor-pointer rounded-xl border border-slate-700 px-4 py-2.5 text-sm text-slate-300 transition hover:border-emerald-500/50 hover:text-emerald-300"
-                >
-                  Upload file
-                  <input
-                    id="source-file"
-                    type="file"
-                    className="hidden"
-                    accept=".py,.js,.jsx,.ts,.tsx,.java,.go,.rs,.c,.h,.cpp,.hpp,.cs,.rb,.php,.swift,.kt,.html,.css,.scss,.sh,.bash,.sql,.json,.yaml,.yml,.md,.txt"
-                    onChange={handleFileChange}
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <div className="flex items-center justify-between">
-                <label htmlFor="source-code" className="text-sm font-medium text-slate-200">
-                  Source code
-                </label>
-                <span className="text-xs text-slate-500">
-                  Max 50KB · {languageLabel(language)}
-                </span>
-              </div>
-              <div className="mt-3 overflow-hidden rounded-xl border border-slate-700">
-                <Editor
-                  height="420px"
-                  language={monacoLanguage}
-                  value={sourceCode}
-                  onChange={(value) => setSourceCode(value ?? '')}
-                  theme="vs-dark"
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 13,
-                    scrollBeyondLastLine: false,
-                    automaticLayout: true,
-                    tabSize: 2,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button
-                type="submit"
-                disabled={isExplaining}
-                className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-800"
-              >
-                {isExplaining ? 'Explaining...' : 'Explain Code'}
-              </button>
-              {isExplaining ? (
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
-                  This can take 10–30 seconds.
+          <Card glow>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="mb-1 flex items-center gap-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-pink-500 text-white">
+                    <Wand2 size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-100">Source Code</h3>
+                    <p className="text-xs text-slate-500">Paste or upload a file to explain</p>
+                  </div>
                 </div>
-              ) : null}
-            </div>
-            {error ? <p className="mt-4 text-sm text-rose-400">{error}</p> : null}
-          </form>
+
+                <div className="grid gap-4 sm:grid-cols-[1fr_220px_auto]">
+                  <Input
+                    id="filename"
+                    label="Filename"
+                    type="text"
+                    value={filename}
+                    onChange={(event) => setFilename(event.target.value)}
+                  />
+                  <Select
+                    id="language"
+                    label="Language"
+                    value={language}
+                    onChange={(event) => setLanguage(event.target.value)}
+                  >
+                    {LANGUAGE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                  <div className="flex items-end">
+                    <label
+                      htmlFor="source-file"
+                      className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:border-indigo-500/40 hover:bg-indigo-500/5"
+                    >
+                      <Upload size={16} />
+                      Upload file
+                      <input
+                        id="source-file"
+                        type="file"
+                        className="hidden"
+                        accept=".py,.js,.jsx,.ts,.tsx,.java,.go,.rs,.c,.h,.cpp,.hpp,.cs,.rb,.php,.swift,.kt,.html,.css,.scss,.sh,.bash,.sql,.json,.yaml,.yml,.md,.txt"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-medium text-slate-200">Source code</p>
+                    <span className="text-xs text-slate-500">
+                      Max 50KB · {languageLabel(language)}
+                    </span>
+                  </div>
+                  <div className="overflow-hidden rounded-xl border border-white/10">
+                    <Editor
+                      height="420px"
+                      language={monacoLanguage}
+                      value={sourceCode}
+                      onChange={(value) => setSourceCode(value ?? '')}
+                      theme="vs-dark"
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 13,
+                        scrollBeyondLastLine: false,
+                        automaticLayout: true,
+                        tabSize: 2,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button type="submit" variant="gradient" loading={isExplaining} disabled={!sourceCode.trim()}>
+                    {isExplaining ? 'Explaining...' : 'Explain Code'}
+                  </Button>
+                  {isExplaining ? (
+                    <p className="text-sm text-slate-400">This can take 10–30 seconds.</p>
+                  ) : null}
+                </div>
+
+                {error ? (
+                  <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+                    {error}
+                  </div>
+                ) : null}
+              </form>
+            </CardContent>
+          </Card>
 
           <CodeExplanationResultView
             explanation={selectedExplanation}
@@ -245,4 +227,3 @@ export default function CodeExplainerPage() {
     </div>
   )
 }
-

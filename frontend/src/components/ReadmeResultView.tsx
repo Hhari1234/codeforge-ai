@@ -1,6 +1,12 @@
 import { useState } from 'react'
-import ReactMarkdown from 'react-markdown'
+import { motion } from 'framer-motion'
+import { Copy, Check, Download, FileText, Layers, Sparkles, BookOpen, FolderTree } from 'lucide-react'
 import type { ReadmeGenerationOut } from '../types/readmeGeneration'
+import { Card, CardContent } from './ui/Card'
+import { EmptyState } from './ui/EmptyState'
+import { LoadingState } from './ui/LoadingState'
+import { Markdown } from './ui/Markdown'
+import { Button } from './ui/Button'
 
 interface ReadmeResultViewProps {
   generation: ReadmeGenerationOut | null
@@ -29,30 +35,53 @@ function safeFilename(title: string): string {
   return cleaned ? `README-${cleaned}.md` : 'README.md'
 }
 
+function SectionCard({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <Card>
+      <CardContent>
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-indigo-300">
+            {icon}
+          </div>
+          <h3 className="font-semibold text-slate-100">{title}</h3>
+        </div>
+        {children}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function ReadmeResultView({ generation, isLoading, isGenerating }: ReadmeResultViewProps) {
   const [copied, setCopied] = useState(false)
 
   if (isGenerating && !generation) {
     return (
-      <div className="flex h-full items-center justify-center rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-slate-400">
-        Generating your README...
-      </div>
+      <LoadingState
+        title="Generating your README..."
+        description="The AI is drafting a complete README for your project."
+      />
     )
   }
 
   if (isLoading && !generation) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-slate-400">
-        Loading README detail...
-      </div>
-    )
+    return <LoadingState title="Loading README detail..." />
   }
 
   if (!generation) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/70 p-8 text-slate-400">
-        Upload a project or paste a description to generate a README.
-      </div>
+      <EmptyState
+        icon={<FileText size={28} />}
+        title="No README yet"
+        description="Upload a project or paste a description to generate a README."
+      />
     )
   }
 
@@ -63,86 +92,72 @@ export default function ReadmeResultView({ generation, isLoading, isGenerating }
   }
 
   return (
-    <div className="space-y-8">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Generated README</p>
-            <h2 className="text-2xl font-semibold text-slate-100">{generation.result.title}</h2>
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      <Card glow className="overflow-hidden">
+        <div className="border-b border-white/10 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent px-6 py-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-400">Generated README</p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-50">{generation.result.title}</h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" icon={copied ? <Check size={16} /> : <Copy size={16} />} onClick={handleCopy}>
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+              <Button
+                variant="gradient"
+                icon={<Download size={16} />}
+                onClick={() => downloadReadme(generation.result.full_markdown, safeFilename(generation.result.title))}
+              >
+                Download
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 transition hover:border-emerald-500/50 hover:text-emerald-300"
-            >
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
-            <button
-              type="button"
-              onClick={() => downloadReadme(generation.result.full_markdown, safeFilename(generation.result.title))}
-              className="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
-            >
-              Download as README.md
-            </button>
-          </div>
+          <p className="mt-3 text-sm text-slate-400">{generation.result.description}</p>
         </div>
-        <p className="mt-3 text-sm text-slate-400">{generation.result.description}</p>
-      </div>
+      </Card>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-        <h3 className="text-lg font-semibold text-slate-100">Tech Stack</h3>
-        <div className="mt-3 flex flex-wrap gap-2">
+      <SectionCard icon={<Layers size={16} />} title="Tech Stack">
+        <div className="flex flex-wrap gap-2">
           {generation.result.tech_stack.map((tech) => (
             <span
               key={tech}
-              className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 text-sm text-slate-300"
+              className="rounded-full border border-white/10 bg-slate-950/50 px-3 py-1 text-sm text-slate-300"
             >
               {tech}
             </span>
           ))}
         </div>
-      </div>
+      </SectionCard>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-        <h3 className="text-lg font-semibold text-slate-100">Features</h3>
-        <ul className="mt-3 space-y-2 text-sm text-slate-300">
+      <SectionCard icon={<Sparkles size={16} />} title="Features">
+        <ul className="space-y-2">
           {generation.result.features.map((feature) => (
-            <li key={feature} className="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2">
+            <li
+              key={feature}
+              className="rounded-lg border border-white/5 bg-slate-950/40 px-3 py-2 text-sm leading-6 text-slate-300"
+            >
               {feature}
             </li>
           ))}
         </ul>
-      </div>
+      </SectionCard>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-        <h3 className="text-lg font-semibold text-slate-100">Installation</h3>
-        <div className="prose prose-invert mt-4 max-w-none text-sm text-slate-300">
-          <ReactMarkdown>{generation.result.installation}</ReactMarkdown>
-        </div>
-      </div>
+      <SectionCard icon={<BookOpen size={16} />} title="Installation">
+        <Markdown>{generation.result.installation}</Markdown>
+      </SectionCard>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-        <h3 className="text-lg font-semibold text-slate-100">Usage</h3>
-        <div className="prose prose-invert mt-4 max-w-none text-sm text-slate-300">
-          <ReactMarkdown>{generation.result.usage}</ReactMarkdown>
-        </div>
-      </div>
+      <SectionCard icon={<BookOpen size={16} />} title="Usage">
+        <Markdown>{generation.result.usage}</Markdown>
+      </SectionCard>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-        <h3 className="text-lg font-semibold text-slate-100">Folder Structure</h3>
-        <div className="prose prose-invert mt-4 max-w-none text-sm text-slate-300">
-          <ReactMarkdown>{generation.result.folder_structure_explanation}</ReactMarkdown>
-        </div>
-      </div>
+      <SectionCard icon={<FolderTree size={16} />} title="Folder Structure">
+        <Markdown>{generation.result.folder_structure_explanation}</Markdown>
+      </SectionCard>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-        <h3 className="text-lg font-semibold text-slate-100">Full README Preview</h3>
-        <div className="prose prose-invert mt-4 max-w-none text-sm text-slate-300">
-          <ReactMarkdown>{generation.result.full_markdown}</ReactMarkdown>
-        </div>
-      </div>
-    </div>
+      <SectionCard icon={<FileText size={16} />} title="Full README Preview">
+        <Markdown>{generation.result.full_markdown}</Markdown>
+      </SectionCard>
+    </motion.div>
   )
 }
-

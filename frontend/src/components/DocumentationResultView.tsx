@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react'
-import type {
-  ApiDocumentationOut,
-  Endpoint,
-  HttpMethod,
-} from '../types/apiDocumentation'
+import { motion } from 'framer-motion'
+import { Search, FileCode2, Copy, Check } from 'lucide-react'
+import type { ApiDocumentationOut, Endpoint, HttpMethod } from '../types/apiDocumentation'
+import { Card, CardContent } from './ui/Card'
+import { EmptyState } from './ui/EmptyState'
+import { LoadingState } from './ui/LoadingState'
+import { CodeBlock } from './ui/CodeBlock'
+import { Button } from './ui/Button'
+import { Input } from './ui/Input'
 
 interface DocumentationResultViewProps {
   doc: ApiDocumentationOut | null
@@ -163,7 +167,6 @@ function exportPdf(doc: ApiDocumentationOut) {
   win.document.write(html)
   win.document.close()
   win.focus()
-  // Give the browser a moment to render before printing.
   setTimeout(() => win.print(), 300)
 }
 
@@ -178,8 +181,8 @@ function EndpointCard({ endpoint, baseUrl }: { endpoint: Endpoint; baseUrl: stri
   }
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/70">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-4 py-3">
+    <Card className="overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
         <div className="flex items-center gap-2">
           <span
             className={`rounded-lg border px-2 py-0.5 text-xs font-bold ${METHOD_STYLES[endpoint.method] ?? 'bg-slate-500/15 text-slate-300 border-slate-500/40'}`}
@@ -189,52 +192,19 @@ function EndpointCard({ endpoint, baseUrl }: { endpoint: Endpoint; baseUrl: stri
           <span className="font-mono text-sm font-semibold text-slate-100">{endpoint.path}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => handleCopy('endpoint', `${endpoint.method} ${endpoint.path}`)}
-            className="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 transition hover:border-emerald-500/50 hover:text-emerald-300"
-          >
+          <Button size="sm" variant="outline" onClick={() => handleCopy('endpoint', `${endpoint.method} ${endpoint.path}`)}>
+            {copied === 'endpoint' ? <Check size={13} /> : <Copy size={13} />}
             {copied === 'endpoint' ? 'Copied!' : 'Copy Endpoint'}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleCopy('curl', buildCurl(endpoint, baseUrl))}
-            className="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 transition hover:border-emerald-500/50 hover:text-emerald-300"
-          >
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => handleCopy('curl', buildCurl(endpoint, baseUrl))}>
+            {copied === 'curl' ? <Check size={13} /> : <Copy size={13} />}
             {copied === 'curl' ? 'Copied!' : 'Copy cURL'}
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              handleCopy(
-                'json',
-                JSON.stringify(
-                  {
-                    method: endpoint.method,
-                    path: endpoint.path,
-                    summary: endpoint.summary,
-                    parameters: endpoint.parameters,
-                    request_body: endpoint.request_body,
-                    responses: endpoint.responses,
-                    example_request: endpoint.example_request,
-                    example_response: endpoint.example_response,
-                  },
-                  null,
-                  2,
-                ),
-              )
-            }
-            className="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 transition hover:border-emerald-500/50 hover:text-emerald-300"
-          >
-            {copied === 'json' ? 'Copied!' : 'Copy JSON'}
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="space-y-3 px-4 py-4">
-        {endpoint.summary ? (
-          <p className="text-sm font-semibold text-slate-100">{endpoint.summary}</p>
-        ) : null}
+      <CardContent className="space-y-3">
+        {endpoint.summary ? <p className="text-sm font-semibold text-slate-100">{endpoint.summary}</p> : null}
         {endpoint.description ? (
           <p className="text-sm leading-6 text-slate-300">{endpoint.description}</p>
         ) : null}
@@ -244,7 +214,7 @@ function EndpointCard({ endpoint, baseUrl }: { endpoint: Endpoint; baseUrl: stri
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Parameters</p>
             <div className="mt-2 space-y-2">
               {endpoint.parameters.map((p, idx) => (
-                <div key={idx} className="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm">
+                <div key={idx} className="rounded-lg border border-white/5 bg-slate-950/40 px-3 py-2 text-sm">
                   <span className="font-mono text-emerald-300">{p.name}</span>{' '}
                   <span className="text-xs text-slate-500">({p.location}, {p.type ?? 'unknown'})</span>{' '}
                   <span className="text-xs text-slate-400">{p.required ? 'required' : 'optional'}</span>
@@ -265,18 +235,18 @@ function EndpointCard({ endpoint, baseUrl }: { endpoint: Endpoint; baseUrl: stri
         {endpoint.example_request ? (
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Example Request</p>
-            <pre className="mt-2 overflow-x-auto rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-xs leading-5 text-emerald-300">
-              {endpoint.example_request.content}
-            </pre>
+            <div className="mt-2">
+              <CodeBlock code={endpoint.example_request.content} language={endpoint.example_request.language} wrapLongLines={false} />
+            </div>
           </div>
         ) : null}
 
         {endpoint.example_response ? (
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Example Response</p>
-            <pre className="mt-2 overflow-x-auto rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-xs leading-5 text-emerald-300">
-              {endpoint.example_response.content}
-            </pre>
+            <div className="mt-2">
+              <CodeBlock code={endpoint.example_response.content} language={endpoint.example_response.language} wrapLongLines={false} />
+            </div>
           </div>
         ) : null}
 
@@ -293,8 +263,8 @@ function EndpointCard({ endpoint, baseUrl }: { endpoint: Endpoint; baseUrl: stri
             </div>
           </div>
         ) : null}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -327,171 +297,178 @@ export default function DocumentationResultView({
 
   if (isGenerating && !doc) {
     return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-slate-400">
-        Generating API documentation... this may take a minute.
-      </div>
+      <LoadingState
+        title="Generating API documentation..."
+        description="The AI is detecting the framework and building professional docs."
+      />
     )
   }
 
   if (isLoading && !doc) {
-    return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-slate-400">
-        Loading documentation detail...
-      </div>
-    )
+    return <LoadingState title="Loading documentation detail..." />
   }
 
   if (!doc) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/70 p-8 text-slate-400">
-        Paste a GitHub URL, upload a ZIP, upload a single file, or an OpenAPI spec to generate
-        professional API documentation.
-      </div>
+      <EmptyState
+        icon={<FileCode2 size={28} />}
+        title="No API documentation yet"
+        description="Paste a GitHub URL, upload a ZIP, a single file, or an OpenAPI spec to generate professional docs."
+      />
     )
   }
 
   const { result } = doc
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-        <div>
-          <p className="text-sm uppercase tracking-[0.3em] text-slate-500">API Documentation</p>
-          <h2 className="mt-1 text-2xl font-semibold text-slate-100">{doc.repo_source}</h2>
-          <p className="mt-2 text-xs text-slate-500">
-            {new Date(doc.created_at).toLocaleString()}
-          </p>
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      <Card glow className="overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-gradient-to-r from-sky-500/10 via-blue-500/10 to-transparent px-6 py-5">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-400">API Documentation</p>
+            <h2 className="mt-1 text-2xl font-bold text-slate-50">{doc.repo_source}</h2>
+            <p className="mt-2 text-xs text-slate-500">{new Date(doc.created_at).toLocaleString()}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => downloadBlob(buildMarkdown(doc), 'text/markdown', `api-docs-${doc.id}.md`)}>
+              Markdown
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => downloadBlob(buildHtml(doc), 'text/html', `api-docs-${doc.id}.html`)}>
+              HTML
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => exportPdf(doc)}>
+              PDF
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => downloadBlob(buildMarkdown(doc), 'text/markdown', `api-docs-${doc.id}.md`)}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-emerald-500/50 hover:text-emerald-300"
-          >
-            Markdown
-          </button>
-          <button
-            type="button"
-            onClick={() => downloadBlob(buildHtml(doc), 'text/html', `api-docs-${doc.id}.html`)}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-emerald-500/50 hover:text-emerald-300"
-          >
-            HTML
-          </button>
-          <button
-            type="button"
-            onClick={() => exportPdf(doc)}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-emerald-500/50 hover:text-emerald-300"
-          >
-            PDF
-          </button>
-        </div>
-      </div>
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-          <p className="text-xs uppercase tracking-wider text-slate-500">Framework</p>
-          <p className="mt-1 font-semibold text-emerald-300">{result.framework}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-          <p className="text-xs uppercase tracking-wider text-slate-500">Base URL</p>
-          <p className="mt-1 font-mono text-sm text-slate-200">{result.base_url}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-          <p className="text-xs uppercase tracking-wider text-slate-500">Authentication</p>
-          <p className="mt-1 text-sm font-semibold text-sky-300">{result.authentication.type}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-          <p className="text-xs uppercase tracking-wider text-slate-500">Endpoints</p>
-          <p className="mt-1 text-sm font-semibold text-slate-200">{result.endpoints.length}</p>
-        </div>
+        <Card>
+          <CardContent>
+            <p className="text-xs uppercase tracking-wider text-slate-500">Framework</p>
+            <p className="mt-1 font-semibold text-emerald-300">{result.framework}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <p className="text-xs uppercase tracking-wider text-slate-500">Base URL</p>
+            <p className="mt-1 font-mono text-sm text-slate-200">{result.base_url}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <p className="text-xs uppercase tracking-wider text-slate-500">Authentication</p>
+            <p className="mt-1 text-sm font-semibold text-sky-300">{result.authentication.type}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <p className="text-xs uppercase tracking-wider text-slate-500">Endpoints</p>
+            <p className="mt-1 text-sm font-semibold text-slate-200">{result.endpoints.length}</p>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">API Overview</h3>
-        <p className="mt-2 text-sm leading-7 text-slate-300">{result.api_overview}</p>
-        {result.authentication.description ? (
-          <p className="mt-3 rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-300">
-            <span className="font-semibold text-sky-300">Auth:</span> {result.authentication.description}
-          </p>
-        ) : null}
-      </div>
+      <Card>
+        <CardContent>
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">API Overview</h3>
+          <p className="mt-2 text-sm leading-7 text-slate-300">{result.api_overview}</p>
+          {result.authentication.description ? (
+            <p className="mt-3 rounded-lg border border-white/5 bg-slate-950/40 px-3 py-2 text-sm text-slate-300">
+              <span className="font-semibold text-sky-300">Auth:</span> {result.authentication.description}
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold text-slate-100">Endpoints</h3>
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="text"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search endpoints..."
-              className="w-56 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none ring-0 placeholder:text-slate-500"
-            />
-            <select
-              value={methodFilter}
-              onChange={(event) => setMethodFilter(event.target.value as HttpMethod | 'All')}
-              className="rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none ring-0"
-            >
-              <option value="All">All Methods</option>
-              {ALL_METHODS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
+      <Card>
+        <CardContent>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="font-semibold text-slate-100">Endpoints</h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Input
+                  type="text"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search endpoints..."
+                  className="w-56 pl-9"
+                />
+              </div>
+              <select
+                value={methodFilter}
+                onChange={(event) => setMethodFilter(event.target.value as HttpMethod | 'All')}
+                className="rounded-xl border border-slate-700/80 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 outline-none transition-all duration-200 focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <option value="All">All Methods</option>
+                {ALL_METHODS.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {filteredEndpoints.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-400">No endpoints match your filters.</p>
+          ) : (
+            <div className="mt-4 space-y-4">
+              {filteredEndpoints.map((endpoint, idx) => (
+                <EndpointCard key={idx} endpoint={endpoint} baseUrl={result.base_url} />
               ))}
-            </select>
-          </div>
-        </div>
-
-        {filteredEndpoints.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-400">No endpoints match your filters.</p>
-        ) : (
-          <div className="mt-4 space-y-4">
-            {filteredEndpoints.map((endpoint, idx) => (
-              <EndpointCard key={idx} endpoint={endpoint} baseUrl={result.base_url} />
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {result.status_codes.length > 0 ? (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-          <h3 className="text-lg font-semibold text-slate-100">Status Codes</h3>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {result.status_codes.map((code, idx) => (
-              <span key={idx} className="rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-1 text-sm text-slate-300">
-                {code}
-              </span>
-            ))}
-          </div>
-        </div>
+        <Card>
+          <CardContent>
+            <h3 className="font-semibold text-slate-100">Status Codes</h3>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {result.status_codes.map((code, idx) => (
+                <span key={idx} className="rounded-lg border border-white/10 bg-slate-950/50 px-3 py-1 text-sm text-slate-300">
+                  {code}
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       ) : null}
 
       {result.error_responses.length > 0 ? (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-          <h3 className="text-lg font-semibold text-slate-100">Error Responses</h3>
-          <ul className="mt-3 space-y-2">
-            {result.error_responses.map((err, idx) => (
-              <li key={idx} className="rounded-lg border border-rose-800/40 bg-rose-500/5 px-3 py-2 text-sm text-slate-300">
-                {err}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <Card>
+          <CardContent>
+            <h3 className="font-semibold text-slate-100">Error Responses</h3>
+            <ul className="mt-3 space-y-2">
+              {result.error_responses.map((err, idx) => (
+                <li key={idx} className="rounded-lg border border-rose-800/40 bg-rose-500/5 px-3 py-2 text-sm text-slate-300">
+                  {err}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       ) : null}
 
       {result.recommendations.length > 0 ? (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-          <h3 className="text-lg font-semibold text-slate-100">Recommendations</h3>
-          <ul className="mt-3 space-y-2">
-            {result.recommendations.map((rec, idx) => (
-              <li key={idx} className="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-300">
-                <span className="mr-2 font-mono text-emerald-400">{idx + 1}.</span>
-                {rec}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <Card>
+          <CardContent>
+            <h3 className="font-semibold text-slate-100">Recommendations</h3>
+            <ul className="mt-3 space-y-2">
+              {result.recommendations.map((rec, idx) => (
+                <li key={idx} className="rounded-lg border border-white/5 bg-slate-950/40 px-3 py-2 text-sm text-slate-300">
+                  <span className="mr-2 font-mono text-emerald-400">{idx + 1}.</span>
+                  {rec}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       ) : null}
-    </div>
+    </motion.div>
   )
 }

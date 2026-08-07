@@ -2,6 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './hooks/useAuth'
+import LandingPage from './pages/LandingPage'
+import DashboardPage from './pages/DashboardPage'
 import ApiDocumentationPage from './pages/ApiDocumentationPage'
 import BugDebuggerPage from './pages/BugDebuggerPage'
 import CodeExplainerPage from './pages/CodeExplainerPage'
@@ -15,32 +17,44 @@ import RepositoryAnalyzerPage from './pages/RepositoryAnalyzerPage'
 import RepositoryChatPage from './pages/RepositoryChatPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 
-function HomeRedirect() {
+function SessionLoader() {
   const { isAuthenticated, isInitializing } = useAuth()
 
   if (isInitializing) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-400">
         <div className="flex items-center gap-2">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
           Checking your session...
         </div>
       </div>
     )
   }
 
-  return <Navigate to={isAuthenticated ? '/projects/generate' : '/login'} replace />
+  return <Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />
 }
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<HomeRedirect />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <DashboardPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/projects/generate"
           element={
@@ -71,7 +85,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-<Route
+        <Route
           path="/code/review"
           element={
             <ProtectedRoute>
@@ -121,11 +135,21 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<HomeRedirect />} />
+
+        {/* Redirects for alternate/new-style paths */}
+        <Route path="/dashboard/project-generator" element={<Navigate to="/projects/generate" replace />} />
+        <Route path="/dashboard/repository-analyzer" element={<Navigate to="/repository/analyze" replace />} />
+        <Route path="/dashboard/code-reviewer" element={<Navigate to="/code/review" replace />} />
+        <Route path="/dashboard/readme-generator" element={<Navigate to="/readme/generate" replace />} />
+        <Route path="/dashboard/repository-chat" element={<Navigate to="/repository/analyze" replace />} />
+        <Route path="/dashboard/code-explainer" element={<Navigate to="/explain" replace />} />
+        <Route path="/dashboard/debugger" element={<Navigate to="/debug" replace />} />
+        <Route path="/dashboard/documentation" element={<Navigate to="/documentation" replace />} />
+
+        <Route path="*" element={<SessionLoader />} />
       </Routes>
     </BrowserRouter>
   )
 }
 
 export default App
-
