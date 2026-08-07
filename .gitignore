@@ -21,6 +21,12 @@ Thumbs.db
 .sixth/
 .kilo/
 
+# Runtime databases — never commit
+codeforge.db
+*.db
+alembic_test.db
+chroma_data/
+
 # Debug / log artifacts
 *.txt
 backend/chroma_data/

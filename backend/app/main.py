@@ -32,7 +32,10 @@ from app.models import (  # noqa: F401 - ensures models are registered before cr
 
 logging.basicConfig(level=logging.INFO)
 
-Base.metadata.create_all(bind=engine)
+# Development convenience: auto-create tables. In production set
+# AUTO_CREATE_TABLES=false and manage schema via Alembic migrations.
+if settings.AUTO_CREATE_TABLES:
+    Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="CodeForge AI", version="0.1.0")
 
@@ -43,6 +46,8 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:5174",
         "http://127.0.0.1:5174",
+        "http://localhost:5175",
+        "http://127.0.0.1:5175",
     ],
     allow_credentials=True,
     allow_methods=["*"],

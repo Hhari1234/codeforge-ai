@@ -31,6 +31,8 @@ services:
         value: REPLACE_WITH_OPENROUTER_KEY
       - key: OPENROUTER_MODEL
         value: anthropic/claude-3.5-haiku
+      - key: AUTO_CREATE_TABLES
+        value: "false"
       - key: FRONTEND_ORIGIN
         value: https://codeforge-frontend.onrender.com
       - key: FRONTEND_URL

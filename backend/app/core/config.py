@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     # Chroma Vector Store
     CHROMA_DATA_DIR: str = "chroma_data"
 
+    # When True, the app runs Base.metadata.create_all() at startup.
+    # Development convenience only — production uses Alembic migrations.
+    AUTO_CREATE_TABLES: bool = True
+
     # SMTP
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587

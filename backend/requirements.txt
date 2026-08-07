@@ -16,3 +16,5 @@ GitPython==3.1.57
 sentence-transformers==3.4.1
 chromadb==0.6.3
 psycopg2-binary==2.9.10
+alembic==1.14.0
+
