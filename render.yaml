@@ -2,8 +2,8 @@
 # Services are built fresh in isolation on Render — no local port conflicts.
 #
 # Secret handling:
-#  - SECRET_KEY uses generateValue: true, so Render creates a strong random
-#    value on first deploy and keeps it dashboard-only (sync: false).
+#  - SECRET_KEY uses generateValue: true: Render creates a strong random value
+#    on first deploy (no value or sync flag is specified for it).
 #  - OPENROUTER_API_KEY and SMTP_* are marked sync: false with NO value here:
 #    set them in Render's dashboard (Environment tab) after first deploy, or
 #    existing dashboard values are preserved. A blueprint entry with both
@@ -31,7 +31,6 @@ services:
           name: codeforge-db
           property: connectionString
       - key: SECRET_KEY
-        sync: false
         generateValue: true
       - key: OPENROUTER_API_KEY
         sync: false
