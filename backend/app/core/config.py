@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     # OpenRouter
     OPENROUTER_API_KEY: str
-    OPENROUTER_MODEL: str = "anthropic/claude-3.5-haiku"
+    OPENROUTER_MODEL: str = "openrouter/free"
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
 
     # CORS
