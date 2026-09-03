@@ -63,7 +63,15 @@ services:
     plan: free
     region: oregon
     envVars:
-      - key: VITE_API_URL
-        value: https://codeforge-backend.onrender.com/api
+      # PORT is injected by Render automatically (nginx template listens on it).
+      # BACKEND_UPSTREAM is the REAL backend service URL on Render. The nginx
+      # template resolves it at request time (never at startup), so the
+      # frontend starts even if the backend service is briefly unavailable.
+      # The SPA calls the same-origin relative path /api, which nginx proxies
+      # here - no CORS, no baked-in backend host, no secrets.
+      - key: BACKEND_UPSTREAM
+        value: https://codeforge-backend.onrender.com
+      - key: NGINX_RESOLVER
+        value: 8.8.8.8
     dockerContext: ./frontend
     dockerfilePath: ./frontend/Dockerfile
