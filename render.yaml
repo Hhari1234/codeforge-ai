@@ -53,9 +53,9 @@ services:
       - key: AUTO_CREATE_TABLES
         value: "false"
       - key: FRONTEND_ORIGIN
-        value: https://codeforge-frontend.onrender.com
+        value: https://codeforge-frontend-s5xw.onrender.com
       - key: FRONTEND_URL
-        value: https://codeforge-frontend.onrender.com
+        value: https://codeforge-frontend-s5xw.onrender.com
       # SMTP is optional: leave SMTP_HOST empty in the dashboard to disable it
       # (password-reset email then falls back gracefully).
       - key: SMTP_HOST
@@ -84,7 +84,7 @@ services:
       # The SPA calls the same-origin relative path /api, which nginx proxies
       # here - no CORS, no baked-in backend host, no secrets.
       - key: BACKEND_UPSTREAM
-        value: https://codeforge-backend.onrender.com
+        value: https://codeforge-backend-u513.onrender.com
       - key: NGINX_RESOLVER
         value: 8.8.8.8
     dockerContext: ./frontend
