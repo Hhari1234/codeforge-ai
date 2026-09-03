@@ -25,6 +25,12 @@ services:
     runtime: docker
     plan: free
     region: oregon
+    # Required for a monorepo layout: without these Render looks for a
+    # Dockerfile at the repo root (./Dockerfile) and fails to build. The
+    # Dockerfile COPYs (app/, alembic/, requirements.txt) are relative to
+    # this context.
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
     envVars:
       - key: DATABASE_URL
         fromDatabase:
