@@ -38,8 +38,14 @@ services:
         fromDatabase:
           name: codeforge-db
           property: connectionString
+      # SECRET_KEY is a dashboard-provided secret, NOT generated or stored in
+      # the repo. generateValue: true cannot work here: this service already
+      # has the variable (created during the original Blueprint setup), and
+      # Render only generates values for variables that do not yet exist.
+      # sync: false means Blueprint syncs never touch it. Set a strong random
+      # value in the Render dashboard (Service -> Environment -> SECRET_KEY).
       - key: SECRET_KEY
-        generateValue: true
+        sync: false
       - key: OPENROUTER_API_KEY
         sync: false
       - key: OPENROUTER_MODEL
