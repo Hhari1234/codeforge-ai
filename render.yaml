@@ -1,7 +1,14 @@
 # Render Blueprint for CodeForge-AI
 # Services are built fresh in isolation on Render — no local port conflicts.
-# Secrets below are PLACEHOLDERS. Set the real values in Render's dashboard
-# (Environment tab) after first deploy. Never commit real secrets.
+#
+# Secret handling:
+#  - SECRET_KEY uses generateValue: true, so Render creates a strong random
+#    value on first deploy and keeps it dashboard-only (sync: false).
+#  - OPENROUTER_API_KEY and SMTP_* are marked sync: false with NO value here:
+#    set them in Render's dashboard (Environment tab) after first deploy, or
+#    existing dashboard values are preserved. A blueprint entry with both
+#    `value` and `sync: false` is invalid, and REPLACE_WITH_* placeholders
+#    would be treated as literal values. Never commit real secrets.
 
 databases:
   - name: codeforge-db
@@ -25,10 +32,9 @@ services:
           property: connectionString
       - key: SECRET_KEY
         sync: false
-        value: REPLACE_WITH_RANDOM_SECRET
+        generateValue: true
       - key: OPENROUTER_API_KEY
         sync: false
-        value: REPLACE_WITH_OPENROUTER_KEY
       - key: OPENROUTER_MODEL
         value: anthropic/claude-3.5-haiku
       - key: AUTO_CREATE_TABLES
@@ -37,20 +43,18 @@ services:
         value: https://codeforge-frontend.onrender.com
       - key: FRONTEND_URL
         value: https://codeforge-frontend.onrender.com
+      # SMTP is optional: leave SMTP_HOST empty in the dashboard to disable it
+      # (password-reset email then falls back gracefully).
       - key: SMTP_HOST
         sync: false
-        value: REPLACE_WITH_SMTP_HOST
       - key: SMTP_PORT
         value: "587"
       - key: SMTP_USERNAME
         sync: false
-        value: REPLACE_WITH_SMTP_USERNAME
       - key: SMTP_PASSWORD
         sync: false
-        value: REPLACE_WITH_SMTP_PASSWORD
       - key: SMTP_FROM_EMAIL
         sync: false
-        value: REPLACE_WITH_SMTP_FROM_EMAIL
     healthCheckPath: /api/health
 
   # ---- Frontend (React / Nginx) ----
