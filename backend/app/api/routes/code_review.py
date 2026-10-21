@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 import uuid
@@ -56,6 +57,12 @@ def _cleanup_staging_dir(staging_dir: Path) -> None:
         pass
 
 
+def _clone_and_ingest(url: str):
+    """Clone + ingest a GitHub repo (blocking) — run via ``asyncio.to_thread``."""
+    with clone_github_repo(url) as cloned:
+        return ingest_repository(cloned.path)
+
+
 @router.post(
     "/analyze-zip",
     response_model=CodeReviewOut,
@@ -96,7 +103,8 @@ async def review_repository_zip_endpoint(
         ) from exc
 
     try:
-        ingest_result = ingest_repository(zip_path)
+        # Blocking disk/CPU work — keep it off the event loop.
+        ingest_result = await asyncio.to_thread(ingest_repository, zip_path)
     except RepoIngestTooLarge as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RepoIngestInvalidZip as exc:
@@ -138,9 +146,8 @@ async def review_repository_github_endpoint(
     url = payload.repo_url.strip()
 
     try:
-        with clone_github_repo(url) as cloned:
-            ingest_result = ingest_repository(cloned.path)
-            result = await review_repository(ingest_result)
+        ingest_result = await asyncio.to_thread(_clone_and_ingest, url)
+        result = await review_repository(ingest_result)
     except GithubCloneInvalidUrl as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except GithubCloneFailed as exc:

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { getApiErrorMessage } from '../services/api'
 import bugDebugService from '../services/bugDebugService'
 import type {
   BugDebugCodeRequest,
@@ -13,6 +14,10 @@ export function useBugDebug() {
   const [isDebugging, setIsDebugging] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // One in-flight debug run at a time; sequence counter for stale selections.
+  const submitInFlightRef = useRef(false)
+  const selectSeqRef = useRef(0)
+
   const sortSessions = useCallback((items: BugDebugListItem[]) => {
     return [...items].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
   }, [])
@@ -25,23 +30,26 @@ export function useBugDebug() {
       const items = await bugDebugService.list()
       setSessions(sortSessions(items))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load history right now.')
+      setError(getApiErrorMessage(err, 'Unable to load history right now.'))
     } finally {
       setIsHistoryLoading(false)
     }
   }, [sortSessions])
 
   const selectSessionById = useCallback(async (id: number) => {
+    const seq = ++selectSeqRef.current
     setIsHistoryLoading(true)
     setError(null)
 
     try {
       const session = await bugDebugService.getById(id)
+      if (seq !== selectSeqRef.current) return // stale response, a newer selection won
       setSelectedSession(session)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load that session right now.')
+      if (seq !== selectSeqRef.current) return
+      setError(getApiErrorMessage(err, 'Unable to load that session right now.'))
     } finally {
-      setIsHistoryLoading(false)
+      if (seq === selectSeqRef.current) setIsHistoryLoading(false)
     }
   }, [])
 
@@ -52,7 +60,7 @@ export function useBugDebug() {
         setSessions((current) => current.filter((s) => s.id !== id))
         setSelectedSession((current) => (current?.id === id ? null : current))
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unable to delete that session right now.')
+        setError(getApiErrorMessage(err, 'Unable to delete that session right now.'))
       }
     },
     [],
@@ -78,6 +86,8 @@ export function useBugDebug() {
 
   const runDebug = useCallback(
     async (action: () => Promise<BugDebugOut>) => {
+      if (submitInFlightRef.current) return // ignore duplicate submissions
+      submitInFlightRef.current = true
       setIsDebugging(true)
       setError(null)
 
@@ -85,11 +95,10 @@ export function useBugDebug() {
         const session = await action()
         adoptSession(session)
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : 'Unable to debug this code right now.'
-        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        setError(detail || message)
+        // User input and prior session results are preserved on failure.
+        setError(getApiErrorMessage(err, 'Unable to debug this code right now.'))
       } finally {
+        submitInFlightRef.current = false
         setIsDebugging(false)
       }
     },
@@ -129,7 +138,7 @@ export function useBugDebug() {
         setSessions(sortSessions(items))
       } catch (err) {
         if (!isMounted) return
-        setError(err instanceof Error ? err.message : 'Unable to load history right now.')
+        setError(getApiErrorMessage(err, 'Unable to load history right now.'))
       } finally {
         if (isMounted) {
           setIsHistoryLoading(false)

@@ -26,7 +26,11 @@ export default function RepositoryChatPage() {
     if (!input.trim() || isSending) return
     const text = input.trim()
     setInput('')
-    await sendMessage(text)
+    const sent = await sendMessage(text)
+    if (!sent) {
+      // Failed (or was superseded) — restore the draft so nothing is lost.
+      setInput((current) => (current ? current : text))
+    }
   }
 
   if (!analysisId) {

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { getApiErrorMessage } from '../services/api'
 import repositoryAnalysisService from '../services/repositoryAnalysisService'
 import type {
   RepositoryAnalysisListItem,
@@ -12,6 +13,10 @@ export function useRepositoryAnalysis() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // One in-flight analysis at a time; sequence counter for stale selections.
+  const submitInFlightRef = useRef(false)
+  const selectSeqRef = useRef(0)
+
   const sortAnalyses = useCallback((items: RepositoryAnalysisListItem[]) => {
     return [...items].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
   }, [])
@@ -24,28 +29,33 @@ export function useRepositoryAnalysis() {
       const items = await repositoryAnalysisService.list()
       setAnalyses(sortAnalyses(items))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load analysis history right now.')
+      setError(getApiErrorMessage(err, 'Unable to load analysis history right now.'))
     } finally {
       setIsHistoryLoading(false)
     }
   }, [sortAnalyses])
 
   const selectAnalysisById = useCallback(async (id: number) => {
+    const seq = ++selectSeqRef.current
     setIsHistoryLoading(true)
     setError(null)
 
     try {
       const analysis = await repositoryAnalysisService.getById(id)
+      if (seq !== selectSeqRef.current) return // stale response, a newer selection won
       setSelectedAnalysis(analysis)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load that analysis right now.')
+      if (seq !== selectSeqRef.current) return
+      setError(getApiErrorMessage(err, 'Unable to load that analysis right now.'))
     } finally {
-      setIsHistoryLoading(false)
+      if (seq === selectSeqRef.current) setIsHistoryLoading(false)
     }
   }, [])
 
   const analyzeZip = useCallback(
     async (file: File) => {
+      if (submitInFlightRef.current) return // ignore duplicate submissions
+      submitInFlightRef.current = true
       setIsAnalyzing(true)
       setError(null)
 
@@ -64,13 +74,9 @@ export function useRepositoryAnalysis() {
           return sortAnalyses(next)
         })
       } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : 'Unable to analyze this repository right now.'
-        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        setError(detail || message)
+        setError(getApiErrorMessage(err, 'Unable to analyze this repository right now.'))
       } finally {
+        submitInFlightRef.current = false
         setIsAnalyzing(false)
       }
     },
@@ -79,6 +85,8 @@ export function useRepositoryAnalysis() {
 
   const analyzeGithub = useCallback(
     async (repoUrl: string) => {
+      if (submitInFlightRef.current) return // ignore duplicate submissions
+      submitInFlightRef.current = true
       setIsAnalyzing(true)
       setError(null)
 
@@ -97,13 +105,9 @@ export function useRepositoryAnalysis() {
           return sortAnalyses(next)
         })
       } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : 'Unable to analyze this repository right now.'
-        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        setError(detail || message)
+        setError(getApiErrorMessage(err, 'Unable to analyze this repository right now.'))
       } finally {
+        submitInFlightRef.current = false
         setIsAnalyzing(false)
       }
     },
@@ -123,7 +127,7 @@ export function useRepositoryAnalysis() {
         setAnalyses(sortAnalyses(items))
       } catch (err) {
         if (!isMounted) return
-        setError(err instanceof Error ? err.message : 'Unable to load analysis history right now.')
+        setError(getApiErrorMessage(err, 'Unable to load analysis history right now.'))
       } finally {
         if (isMounted) {
           setIsHistoryLoading(false)

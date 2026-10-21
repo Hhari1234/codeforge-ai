@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -37,6 +38,23 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# How many prior turns are fed back into the prompt for follow-up questions.
+CHAT_HISTORY_TURNS = 10
+
+# Per-collection build locks: two concurrent first messages for the same
+# repository must not clone/embed the same repo twice at once.
+_collection_locks: dict[str, asyncio.Lock] = {}
+_collection_locks_guard = asyncio.Lock()
+
+
+async def _get_collection_lock(collection_name: str) -> asyncio.Lock:
+    async with _collection_locks_guard:
+        lock = _collection_locks.get(collection_name)
+        if lock is None:
+            lock = asyncio.Lock()
+            _collection_locks[collection_name] = lock
+        return lock
+
 
 def _is_github_source(repo_source: str) -> bool:
     return repo_source.startswith("http://") or repo_source.startswith("https://") or repo_source.startswith("github.com/")
@@ -74,6 +92,28 @@ def _build_collection(collection_name: str, ingest_result: RepoIngestResult) -> 
     add_chunks(collection_name, chunks, chunk_embeddings)
 
 
+async def _ensure_collection_exists_safe(
+    user_id: int, analysis_id: int, repo_source: str
+) -> None:
+    """Build the vector index if missing — off the event loop.
+
+    Cloning, walking the repo and embedding are all blocking (and can take
+    seconds to minutes); running them inline inside an ``async def`` handler
+    would stall every other request on the shared event loop.
+    """
+    collection_name = get_collection_name(user_id, analysis_id)
+    lock = await _get_collection_lock(collection_name)
+    async with lock:
+        # Re-check inside the lock: another request may have just built it.
+        await asyncio.to_thread(_ensure_collection_exists, user_id, analysis_id, repo_source)
+
+
+def _recent_chat_history(db: Session, user_id: int, analysis_id: int) -> list[dict]:
+    """Prior turns (oldest first) for follow-up context."""
+    messages = list_chat_messages_for_user_and_analysis(db, user_id, analysis_id)
+    return [{"role": m.role, "content": m.content} for m in messages[-CHAT_HISTORY_TURNS:]]
+
+
 @router.post(
     "/{analysis_id}/chat",
     response_model=ChatMessageResponse,
@@ -90,12 +130,14 @@ async def chat_with_repository(
         raise HTTPException(status_code=404, detail="Repository analysis not found")
 
     try:
-        _ensure_collection_exists(current_user.id, analysis_id, analysis.repo_source)
+        await _ensure_collection_exists_safe(
+            current_user.id, analysis_id, analysis.repo_source
+        )
     except (GithubCloneInvalidUrl, GithubCloneFailed) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except RepoIngestError as exc:
-        raise HTTPException(status_code=400, detail=f"Could not ingest repository: {exc}") from exc
     except RepoIngestUnsupportedSource as exc:
+        # Must be caught BEFORE RepoIngestError (its base class) or this
+        # branch is dead code and ZIP-imported repos get a generic 400.
         raise HTTPException(
             status_code=422,
             detail=(
@@ -104,6 +146,8 @@ async def chat_with_repository(
                 "repositories or local directories."
             ),
         ) from exc
+    except RepoIngestError as exc:
+        raise HTTPException(status_code=400, detail=f"Could not ingest repository: {exc}") from exc
     except Exception as exc:
         logger.exception("Failed to build vector store for chat")
         raise HTTPException(status_code=500, detail=f"Failed to prepare repository for chat: {exc}") from exc
@@ -112,6 +156,12 @@ async def chat_with_repository(
     if not user_message:
         raise HTTPException(status_code=400, detail="message must not be empty.")
 
+    # Load prior turns BEFORE persisting the new user message so the prompt
+    # doesn't duplicate it, then persist and answer.
+    history = await asyncio.to_thread(
+        _recent_chat_history, db, current_user.id, analysis_id
+    )
+
     save_chat_message(db, current_user.id, analysis_id, "user", user_message)
 
     try:
@@ -119,6 +169,7 @@ async def chat_with_repository(
             user_id=current_user.id,
             analysis_id=analysis_id,
             question=user_message,
+            history=history,
         )
     except RuntimeError as exc:
         logger.exception("Repository chat failed")

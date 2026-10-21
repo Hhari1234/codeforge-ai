@@ -48,8 +48,12 @@ services:
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
+      # Verified 2026-10-21: openrouter/free auto-routes to unreliable or
+      # reasoning-only models (null content on large structured requests);
+      # MiniMax M3.1 Flash reliably returns small/medium JSON. Large requests
+      # fail gracefully with a friendly 502 if the provider is flaky.
       - key: OPENROUTER_MODEL
-        value: openrouter/free
+        value: minimax/minimax-m3.1-flash:free
       - key: AUTO_CREATE_TABLES
         value: "false"
       - key: FRONTEND_ORIGIN

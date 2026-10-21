@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { getApiErrorMessage } from '../services/api'
 import readmeGenerationService from '../services/readmeGenerationService'
 import type {
   ReadmeGenerationListItem,
@@ -12,6 +13,10 @@ export function useReadmeGeneration() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // One in-flight generation at a time; sequence counter for stale selections.
+  const submitInFlightRef = useRef(false)
+  const selectSeqRef = useRef(0)
+
   const sortGenerations = useCallback((items: ReadmeGenerationListItem[]) => {
     return [...items].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
   }, [])
@@ -24,28 +29,33 @@ export function useReadmeGeneration() {
       const items = await readmeGenerationService.list()
       setGenerations(sortGenerations(items))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load README history right now.')
+      setError(getApiErrorMessage(err, 'Unable to load README history right now.'))
     } finally {
       setIsHistoryLoading(false)
     }
   }, [sortGenerations])
 
   const selectGenerationById = useCallback(async (id: number) => {
+    const seq = ++selectSeqRef.current
     setIsHistoryLoading(true)
     setError(null)
 
     try {
       const generation = await readmeGenerationService.getById(id)
+      if (seq !== selectSeqRef.current) return // stale response, a newer selection won
       setSelectedGeneration(generation)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load that README right now.')
+      if (seq !== selectSeqRef.current) return
+      setError(getApiErrorMessage(err, 'Unable to load that README right now.'))
     } finally {
-      setIsHistoryLoading(false)
+      if (seq === selectSeqRef.current) setIsHistoryLoading(false)
     }
   }, [])
 
   const generateGeneration = useCallback(
     async (description: string, files: File[]) => {
+      if (submitInFlightRef.current) return // ignore duplicate submissions
+      submitInFlightRef.current = true
       setIsGenerating(true)
       setError(null)
 
@@ -65,14 +75,10 @@ export function useReadmeGeneration() {
           return sortGenerations(next)
         })
       } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : 'Unable to generate a README right now.'
-        // Show backend `detail` when available.
-        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        setError(detail || message)
+        // Description/files and prior results are untouched on failure.
+        setError(getApiErrorMessage(err, 'Unable to generate a README right now.'))
       } finally {
+        submitInFlightRef.current = false
         setIsGenerating(false)
       }
     },
@@ -92,7 +98,7 @@ export function useReadmeGeneration() {
         setGenerations(sortGenerations(items))
       } catch (err) {
         if (!isMounted) return
-        setError(err instanceof Error ? err.message : 'Unable to load README history right now.')
+        setError(getApiErrorMessage(err, 'Unable to load README history right now.'))
       } finally {
         if (isMounted) {
           setIsHistoryLoading(false)

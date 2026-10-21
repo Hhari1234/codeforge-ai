@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import shutil
@@ -61,6 +62,12 @@ def _cleanup_staging_dir(staging_dir: Path) -> None:
         os.rmdir(staging_dir.parent)
     except OSError:
         pass
+
+
+def _clone_and_ingest(url: str):
+    """Clone + ingest a GitHub repo (blocking) — run via ``asyncio.to_thread``."""
+    with clone_github_repo(url) as cloned:
+        return ingest_repository(cloned.path)
 
 
 def _byte_size(text: str) -> int:
@@ -159,7 +166,8 @@ async def generate_docs_zip_endpoint(
         ) from exc
 
     try:
-        ingest_result = ingest_repository(zip_path)
+        # Blocking disk/CPU work — keep it off the event loop.
+        ingest_result = await asyncio.to_thread(ingest_repository, zip_path)
     except RepoIngestError as exc:
         _cleanup_staging_dir(staging_dir)
         raise _handle_ingest_errors(exc) from exc
@@ -198,9 +206,8 @@ async def generate_docs_github_endpoint(
     url = payload.repo_url.strip()
 
     try:
-        with clone_github_repo(url) as cloned:
-            ingest_result = ingest_repository(cloned.path)
-            result = await generate_documentation(ingest_result)
+        ingest_result = await asyncio.to_thread(_clone_and_ingest, url)
+        result = await generate_documentation(ingest_result)
     except (GithubCloneInvalidUrl, GithubCloneFailed, RepoIngestError) as exc:
         raise _handle_ingest_errors(exc) from exc
     except ApiDocumentationError as exc:

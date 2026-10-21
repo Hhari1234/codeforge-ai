@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { getApiErrorMessage } from '../services/api'
 import projectGenerationService from '../services/projectGenerationService'
 import type {
   ProjectGenerationListItem,
@@ -12,6 +13,11 @@ export function useProjectGeneration() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // One in-flight submit at a time (prevents duplicate generation requests);
+  // sequence counter so a slower stale response never overwrites a newer one.
+  const submitInFlightRef = useRef(false)
+  const selectSeqRef = useRef(0)
+
   const sortGenerations = useCallback((items: ProjectGenerationListItem[]) => {
     return [...items].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
   }, [])
@@ -24,27 +30,32 @@ export function useProjectGeneration() {
       const items = await projectGenerationService.list()
       setGenerations(sortGenerations(items))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load generation history right now.')
+      setError(getApiErrorMessage(err, 'Unable to load generation history right now.'))
     } finally {
       setIsHistoryLoading(false)
     }
   }, [sortGenerations])
 
   const selectGenerationById = useCallback(async (id: number) => {
+    const seq = ++selectSeqRef.current
     setIsHistoryLoading(true)
     setError(null)
 
     try {
       const generation = await projectGenerationService.getById(id)
+      if (seq !== selectSeqRef.current) return // stale response, a newer selection won
       setSelectedGeneration(generation)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load that generation right now.')
+      if (seq !== selectSeqRef.current) return
+      setError(getApiErrorMessage(err, 'Unable to load that generation right now.'))
     } finally {
-      setIsHistoryLoading(false)
+      if (seq === selectSeqRef.current) setIsHistoryLoading(false)
     }
   }, [])
 
   const generateGeneration = useCallback(async (idea: string) => {
+    if (submitInFlightRef.current) return // ignore duplicate submissions
+    submitInFlightRef.current = true
     setIsGenerating(true)
     setError(null)
 
@@ -64,8 +75,11 @@ export function useProjectGeneration() {
         return sortGenerations(next)
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to generate a project spec right now.')
+      // Input (idea) and prior results are untouched on failure, so the user
+      // can retry without re-typing.
+      setError(getApiErrorMessage(err, 'Unable to generate a project spec right now.'))
     } finally {
+      submitInFlightRef.current = false
       setIsGenerating(false)
     }
   }, [sortGenerations])
@@ -83,7 +97,7 @@ export function useProjectGeneration() {
         setGenerations(sortGenerations(items))
       } catch (err) {
         if (!isMounted) return
-        setError(err instanceof Error ? err.message : 'Unable to load generation history right now.')
+        setError(getApiErrorMessage(err, 'Unable to load generation history right now.'))
       } finally {
         if (isMounted) {
           setIsHistoryLoading(false)

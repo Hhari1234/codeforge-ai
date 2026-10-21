@@ -8,19 +8,62 @@ STRICT RULES:
 5. Keep your answer concise and directly relevant to the question asked."""
 
 
-def build_chat_user_prompt(question: str, chunks: list[str]) -> str:
-    """Build the user-side prompt from the question and retrieved chunks.
+# How many prior conversation turns are fed back into the prompt so follow-up
+# questions ("what about the second one?") resolve against real context.
+MAX_HISTORY_TURNS = 8
+# Bound on characters kept per history message so the prompt stays small.
+MAX_HISTORY_CHARS = 1000
+
+
+def _format_history(
+    history: list[dict] | None, current_question: str
+) -> str:
+    """Render prior conversation turns (newest last, excluding the current ask)."""
+    if not history:
+        return ""
+    turns = []
+    for message in history[-MAX_HISTORY_TURNS:]:
+        role = message.get("role", "")
+        content = (message.get("content") or "").strip()
+        if not content or role not in ("user", "assistant"):
+            continue
+        if content == current_question and role == "user":
+            # Skip the current question — it is rendered separately.
+            continue
+        if len(content) > MAX_HISTORY_CHARS:
+            content = content[:MAX_HISTORY_CHARS] + "… (truncated)"
+        label = "User" if role == "user" else "Assistant"
+        turns.append(f"{label}: {content}")
+    if not turns:
+        return ""
+    return (
+        "Conversation so far (for follow-up context; do not re-answer prior "
+        "questions unless asked):\n"
+        + "\n".join(turns)
+        + "\n\n"
+    )
+
+
+def build_chat_user_prompt(
+    question: str, chunks: list[str], history: list[dict] | None = None
+) -> str:
+    """Build the user-side prompt from the question, history and chunks.
 
     Args:
         question: The user's question string.
         chunks: List of chunk text strings retrieved from the vector store.
+        history: Optional prior conversation turns as ``{"role", "content"}``
+            dicts (oldest first) so follow-up questions keep their context.
 
     Returns:
-        A single prompt string containing the question and all retrieved chunks.
+        A single prompt string containing the conversation history, the
+        question and all retrieved chunks.
     """
+    history_section = _format_history(history, question)
+
     if not chunks:
         return (
-            f"Question: {question}\n\n"
+            f"{history_section}Question: {question}\n\n"
             "No relevant code chunks were found in the repository. "
             "I don't have enough context to answer that."
         )
@@ -30,7 +73,7 @@ def build_chat_user_prompt(question: str, chunks: list[str]) -> str:
         chunk_sections.append(f"--- Chunk {i} ---\n{chunk_text}")
 
     return (
-        f"Question: {question}\n\n"
+        f"{history_section}Question: {question}\n\n"
         "Retrieved code chunks from the repository:\n\n"
         + "\n\n".join(chunk_sections)
         + "\n\nAnswer the question using ONLY the information in these chunks."

@@ -14,6 +14,16 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str
     OPENROUTER_MODEL: str = "openrouter/free"
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+    # Per-request timeout for a single LLM call (seconds).
+    OPENROUTER_TIMEOUT_SECONDS: float = 120.0
+    # Bounded retries for *transient* failures only (429 / 5xx / timeouts /
+    # connection errors). Auth, payment and validation errors never retry.
+    OPENROUTER_MAX_RETRIES: int = 2
+    # Base delay for exponential backoff between retries (seconds).
+    OPENROUTER_RETRY_BASE_DELAY_SECONDS: float = 1.0
+    # Upper bound for a single completion. Keeps output length predictable
+    # and prevents free-tier models from running away with token cost.
+    OPENROUTER_MAX_TOKENS: int = 8192
 
     # CORS
     FRONTEND_ORIGIN: str = "http://localhost:5173"

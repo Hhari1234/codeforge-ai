@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { getApiErrorMessage } from '../services/api'
 import apiDocumentationService from '../services/apiDocumentationService'
 import type {
   ApiDocumentationListItem,
@@ -13,6 +14,10 @@ export function useApiDocumentation() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // One in-flight generation at a time; sequence counter for stale selections.
+  const submitInFlightRef = useRef(false)
+  const selectSeqRef = useRef(0)
+
   const sortDocs = useCallback((items: ApiDocumentationListItem[]) => {
     return [...items].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
   }, [])
@@ -25,23 +30,26 @@ export function useApiDocumentation() {
       const items = await apiDocumentationService.list()
       setDocs(sortDocs(items))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load history right now.')
+      setError(getApiErrorMessage(err, 'Unable to load history right now.'))
     } finally {
       setIsHistoryLoading(false)
     }
   }, [sortDocs])
 
   const selectDocById = useCallback(async (id: number) => {
+    const seq = ++selectSeqRef.current
     setIsHistoryLoading(true)
     setError(null)
 
     try {
       const doc = await apiDocumentationService.getById(id)
+      if (seq !== selectSeqRef.current) return // stale response, a newer selection won
       setSelectedDoc(doc)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load that document right now.')
+      if (seq !== selectSeqRef.current) return
+      setError(getApiErrorMessage(err, 'Unable to load that document right now.'))
     } finally {
-      setIsHistoryLoading(false)
+      if (seq === selectSeqRef.current) setIsHistoryLoading(false)
     }
   }, [])
 
@@ -52,7 +60,7 @@ export function useApiDocumentation() {
         setDocs((current) => current.filter((d) => d.id !== id))
         setSelectedDoc((current) => (current?.id === id ? null : current))
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unable to delete that document right now.')
+        setError(getApiErrorMessage(err, 'Unable to delete that document right now.'))
       }
     },
     [],
@@ -74,6 +82,8 @@ export function useApiDocumentation() {
 
   const runGeneration = useCallback(
     async (action: () => Promise<ApiDocumentationOut>) => {
+      if (submitInFlightRef.current) return // ignore duplicate submissions
+      submitInFlightRef.current = true
       setIsGenerating(true)
       setError(null)
 
@@ -81,11 +91,10 @@ export function useApiDocumentation() {
         const doc = await action()
         adoptDoc(doc)
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : 'Unable to generate documentation right now.'
-        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        setError(detail || message)
+        // User input and prior results are preserved on failure.
+        setError(getApiErrorMessage(err, 'Unable to generate documentation right now.'))
       } finally {
+        submitInFlightRef.current = false
         setIsGenerating(false)
       }
     },
@@ -132,7 +141,7 @@ export function useApiDocumentation() {
         setDocs(sortDocs(items))
       } catch (err) {
         if (!isMounted) return
-        setError(err instanceof Error ? err.message : 'Unable to load history right now.')
+        setError(getApiErrorMessage(err, 'Unable to load history right now.'))
       } finally {
         if (isMounted) {
           setIsHistoryLoading(false)

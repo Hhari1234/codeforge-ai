@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { getApiErrorMessage } from '../services/api'
 import codeReviewService from '../services/codeReviewService'
 import type {
   CodeReviewListItem,
@@ -12,6 +13,10 @@ export function useCodeReview() {
   const [isReviewing, setIsReviewing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // One in-flight review at a time; sequence counter for stale selections.
+  const submitInFlightRef = useRef(false)
+  const selectSeqRef = useRef(0)
+
   const sortReviews = useCallback((items: CodeReviewListItem[]) => {
     return [...items].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
   }, [])
@@ -24,23 +29,26 @@ export function useCodeReview() {
       const items = await codeReviewService.list()
       setReviews(sortReviews(items))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load review history right now.')
+      setError(getApiErrorMessage(err, 'Unable to load review history right now.'))
     } finally {
       setIsHistoryLoading(false)
     }
   }, [sortReviews])
 
   const selectReviewById = useCallback(async (id: number) => {
+    const seq = ++selectSeqRef.current
     setIsHistoryLoading(true)
     setError(null)
 
     try {
       const review = await codeReviewService.getById(id)
+      if (seq !== selectSeqRef.current) return // stale response, a newer selection won
       setSelectedReview(review)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load that review right now.')
+      if (seq !== selectSeqRef.current) return
+      setError(getApiErrorMessage(err, 'Unable to load that review right now.'))
     } finally {
-      setIsHistoryLoading(false)
+      if (seq === selectSeqRef.current) setIsHistoryLoading(false)
     }
   }, [])
 
@@ -64,6 +72,8 @@ export function useCodeReview() {
 
   const analyzeZip = useCallback(
     async (file: File) => {
+      if (submitInFlightRef.current) return // ignore duplicate submissions
+      submitInFlightRef.current = true
       setIsReviewing(true)
       setError(null)
 
@@ -71,13 +81,9 @@ export function useCodeReview() {
         const review = await codeReviewService.analyzeZip(file)
         adoptReview(review)
       } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : 'Unable to review this repository right now.'
-        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        setError(detail || message)
+        setError(getApiErrorMessage(err, 'Unable to review this repository right now.'))
       } finally {
+        submitInFlightRef.current = false
         setIsReviewing(false)
       }
     },
@@ -86,6 +92,8 @@ export function useCodeReview() {
 
   const analyzeGithub = useCallback(
     async (repoUrl: string) => {
+      if (submitInFlightRef.current) return // ignore duplicate submissions
+      submitInFlightRef.current = true
       setIsReviewing(true)
       setError(null)
 
@@ -93,13 +101,9 @@ export function useCodeReview() {
         const review = await codeReviewService.analyzeGithub({ repo_url: repoUrl })
         adoptReview(review)
       } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : 'Unable to review this repository right now.'
-        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        setError(detail || message)
+        setError(getApiErrorMessage(err, 'Unable to review this repository right now.'))
       } finally {
+        submitInFlightRef.current = false
         setIsReviewing(false)
       }
     },
@@ -119,7 +123,7 @@ export function useCodeReview() {
         setReviews(sortReviews(items))
       } catch (err) {
         if (!isMounted) return
-        setError(err instanceof Error ? err.message : 'Unable to load review history right now.')
+        setError(getApiErrorMessage(err, 'Unable to load review history right now.'))
       } finally {
         if (isMounted) {
           setIsHistoryLoading(false)

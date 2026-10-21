@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { getApiErrorMessage } from '../services/api'
 import codeExplanationService from '../services/codeExplanationService'
 import type {
   CodeExplanationListItem,
@@ -12,6 +13,10 @@ export function useCodeExplanation() {
   const [isExplaining, setIsExplaining] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // One in-flight explanation at a time; sequence counter for stale selections.
+  const submitInFlightRef = useRef(false)
+  const selectSeqRef = useRef(0)
+
   const sortExplanations = useCallback((items: CodeExplanationListItem[]) => {
     return [...items].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
   }, [])
@@ -24,23 +29,26 @@ export function useCodeExplanation() {
       const items = await codeExplanationService.list()
       setExplanations(sortExplanations(items))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load explanation history right now.')
+      setError(getApiErrorMessage(err, 'Unable to load explanation history right now.'))
     } finally {
       setIsHistoryLoading(false)
     }
   }, [sortExplanations])
 
   const selectExplanationById = useCallback(async (id: number) => {
+    const seq = ++selectSeqRef.current
     setIsHistoryLoading(true)
     setError(null)
 
     try {
       const explanation = await codeExplanationService.getById(id)
+      if (seq !== selectSeqRef.current) return // stale response, a newer selection won
       setSelectedExplanation(explanation)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load that explanation right now.')
+      if (seq !== selectSeqRef.current) return
+      setError(getApiErrorMessage(err, 'Unable to load that explanation right now.'))
     } finally {
-      setIsHistoryLoading(false)
+      if (seq === selectSeqRef.current) setIsHistoryLoading(false)
     }
   }, [])
 
@@ -50,6 +58,8 @@ export function useCodeExplanation() {
       language: string
       source_code: string
     }) => {
+      if (submitInFlightRef.current) return // ignore duplicate submissions
+      submitInFlightRef.current = true
       setIsExplaining(true)
       setError(null)
 
@@ -69,14 +79,10 @@ export function useCodeExplanation() {
           return sortExplanations(next)
         })
       } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : 'Unable to explain this code right now.'
-        // Show backend `detail` when available.
-        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        setError(detail || message)
+        // The pasted source stays in the editor on failure, so retry is safe.
+        setError(getApiErrorMessage(err, 'Unable to explain this code right now.'))
       } finally {
+        submitInFlightRef.current = false
         setIsExplaining(false)
       }
     },
@@ -96,7 +102,7 @@ export function useCodeExplanation() {
         setExplanations(sortExplanations(items))
       } catch (err) {
         if (!isMounted) return
-        setError(err instanceof Error ? err.message : 'Unable to load explanation history right now.')
+        setError(getApiErrorMessage(err, 'Unable to load explanation history right now.'))
       } finally {
         if (isMounted) {
           setIsHistoryLoading(false)

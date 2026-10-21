@@ -101,6 +101,13 @@ def query(
     """
     collection = get_or_create_collection(collection_name, persist_directory)
 
+    # ChromaDB rejects n_results=0; an empty collection means no context yet
+    # (e.g. index build produced no chunks), so return no hits instead of
+    # raising a 500 at the route layer.
+    collection_count = collection.count()
+    if collection_count == 0:
+        return []
+
     if isinstance(query_embedding, np.ndarray):
         query_vec = query_embedding.tolist()
     else:
@@ -108,7 +115,7 @@ def query(
 
     results = collection.query(
         query_embeddings=[query_vec],
-        n_results=min(k, collection.count()),
+        n_results=min(k, collection_count),
         include=["documents", "metadatas", "distances"],
     )
 

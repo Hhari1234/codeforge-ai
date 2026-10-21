@@ -1,7 +1,13 @@
-import json
+"""Code Explainer LLM engine.
+
+Uses the shared ``chat_json`` pipeline (provider retries, defensive JSON
+parsing, one corrective retry, mapped errors) instead of local parsing logic.
+Python files additionally get AST structural context pre-computed here.
+"""
+
 from pathlib import Path
 
-from app.ai.client import openrouter_client
+from app.ai.llm_utils import chat_json
 from app.ai.prompts.code_explainer_prompt import (
     CODE_EXPLAINER_SYSTEM_PROMPT,
     build_code_explainer_user_prompt,
@@ -15,55 +21,6 @@ _PYTHON_EXTENSIONS = {".py", ".pyw"}
 
 class CodeExplanationError(Exception):
     """Raised when the LLM output can't be parsed into a valid result."""
-
-
-def _strip_markdown_fences(text: str) -> str:
-    text = text.strip()
-    if text.startswith("```"):
-        parts = text.split("```", 2)
-        if len(parts) >= 3:
-            text = parts[1]
-        else:
-            text = text.strip("`")
-        text = text.removeprefix("json").strip()
-    return text.strip()
-
-
-def _escape_json_control_chars(text: str) -> str:
-    escaped: list[str] = []
-    in_string = False
-    escape = False
-
-    for char in text:
-        if escape:
-            escaped.append(char)
-            escape = False
-            continue
-
-        if char == "\\":
-            escaped.append(char)
-            escape = True
-            continue
-
-        if char == '"':
-            escaped.append(char)
-            in_string = not in_string
-            continue
-
-        if in_string and ord(char) < 0x20:
-            if char == "\n":
-                escaped.append("\\n")
-            elif char == "\r":
-                escaped.append("\\r")
-            elif char == "\t":
-                escaped.append("\\t")
-            else:
-                escaped.append(f"\\u{ord(char):04x}")
-            continue
-
-        escaped.append(char)
-
-    return "".join(escaped)
 
 
 def _language_from_filename(filename: str) -> str:
@@ -121,7 +78,7 @@ async def explain_code(filename: str, language: str, source_code: str) -> CodeEx
     """
     ast_context = _ast_context_for(filename, source_code)
 
-    raw_reply = await openrouter_client.chat(
+    return await chat_json(
         messages=[
             {"role": "system", "content": CODE_EXPLAINER_SYSTEM_PROMPT},
             {
@@ -133,26 +90,7 @@ async def explain_code(filename: str, language: str, source_code: str) -> CodeEx
                     ast_context,
                 ),
             },
-        ]
+        ],
+        schema=CodeExplanationResult,
+        error_cls=CodeExplanationError,
     )
-
-    cleaned = _strip_markdown_fences(raw_reply)
-
-    try:
-        parsed = json.loads(cleaned)
-    except json.JSONDecodeError:
-        cleaned = _escape_json_control_chars(cleaned)
-        try:
-            parsed = json.loads(cleaned)
-        except json.JSONDecodeError as exc:
-            raise CodeExplanationError(
-                f"LLM did not return valid JSON: {exc}"
-            ) from exc
-
-    try:
-        return CodeExplanationResult(**parsed)
-    except Exception as exc:
-        raise CodeExplanationError(
-            f"LLM JSON did not match expected schema: {exc}"
-        ) from exc
-
