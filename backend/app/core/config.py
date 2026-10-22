@@ -24,6 +24,15 @@ class Settings(BaseSettings):
     # Upper bound for a single completion. Keeps output length predictable
     # and prevents free-tier models from running away with token cost.
     OPENROUTER_MAX_TOKENS: int = 8192
+    # Reasoning effort sent with every completion. Production evidence
+    # (2026-10-22): on large prompts minimax/minimax-m3.1-flash:free spent the
+    # entire 8192-token budget on chain-of-thought (finish_reason='length',
+    # reasoning_tokens=8192, content empty) and every such response failed.
+    # Pinning effort to "low" keeps reasoning bounded so the final answer fits
+    # (verified: finish_reason='stop', 252 reasoning tokens, valid JSON).
+    # Set to an empty string to omit the reasoning parameter entirely (for
+    # models that don't accept it).
+    OPENROUTER_REASONING_EFFORT: str = "low"
 
     # CORS
     FRONTEND_ORIGIN: str = "http://localhost:5173"

@@ -241,3 +241,56 @@ async def test_empty_content_with_length_finish_raises_truncated(monkeypatch):
     )
     with pytest.raises(OpenRouterTruncatedError, match="output token limit"):
         await openrouter_client.chat([{"role": "user", "content": "hi"}])
+
+
+@pytest.mark.asyncio
+async def test_reasoning_burned_budget_raises_truncated_not_empty(monkeypatch):
+    """Regression: reasoning tokens ate the whole budget (finish_reason=
+    'length', empty content). Must report truncation, not "empty response",
+    because the fix is a shorter input / bounded reasoning, not a retry."""
+    install_transport(
+        monkeypatch,
+        lambda r: httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": "",
+                            "reasoning_content": "thinking..." * 100,
+                        },
+                        "finish_reason": "length",
+                    }
+                ],
+                "usage": {"completion_tokens": 8192},
+            },
+        ),
+    )
+    with pytest.raises(OpenRouterTruncatedError, match="on reasoning"):
+        await openrouter_client.chat([{"role": "user", "content": "hi"}])
+
+
+@pytest.mark.asyncio
+async def test_payload_includes_reasoning_effort(monkeypatch):
+    """Regression: reasoning effort must be sent so chain-of-thought cannot
+    consume the whole completion budget on large prompts (production 502s)."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "OPENROUTER_REASONING_EFFORT", "low")
+    calls = install_transport(monkeypatch, ok_handler)
+    await openrouter_client.chat([{"role": "user", "content": "hi"}])
+    body = jsonlib.loads(calls[0].content)
+    assert body["reasoning"] == {"effort": "low"}
+
+
+@pytest.mark.asyncio
+async def test_payload_omits_reasoning_when_effort_empty(monkeypatch):
+    """An empty OPENROUTER_REASONING_EFFORT must not send the parameter
+    (for models that reject reasoning controls)."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "OPENROUTER_REASONING_EFFORT", "")
+    calls = install_transport(monkeypatch, ok_handler)
+    await openrouter_client.chat([{"role": "user", "content": "hi"}])
+    body = jsonlib.loads(calls[0].content)
+    assert "reasoning" not in body

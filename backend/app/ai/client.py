@@ -139,6 +139,14 @@ class OpenRouterClient:
             "model": model or self.model,
             "messages": messages,
         }
+        # Keep chain-of-thought bounded so the final answer still fits inside
+        # max_tokens. Without this, reasoning models on large prompts can burn
+        # the whole completion budget on reasoning (finish_reason='length',
+        # empty content) and fail every request. An empty setting omits the
+        # parameter for models that don't support reasoning controls.
+        reasoning_effort = (settings.OPENROUTER_REASONING_EFFORT or "").strip()
+        if reasoning_effort:
+            payload["reasoning"] = {"effort": reasoning_effort}
         if max_tokens is None:
             max_tokens = settings.OPENROUTER_MAX_TOKENS
         if max_tokens and max_tokens > 0:
@@ -302,17 +310,26 @@ class OpenRouterClient:
                 bool(reasoning),
                 response.text[:300],
             )
+            if finish_reason == "length":
+                # The budget ran out before any content was written. On
+                # reasoning models this usually means chain-of-thought
+                # consumed max_tokens (verified: 8192 reasoning tokens,
+                # 0 content) — report truncation, not "empty response".
+                reasoning_spent = (
+                    " (all of it on reasoning)"
+                    if reasoning and str(reasoning).strip()
+                    else ""
+                )
+                raise OpenRouterTruncatedError(
+                    f"The model '{model}' hit the output token limit "
+                    f"({completion_tokens} tokens generated{reasoning_spent}) "
+                    "before producing any usable content. Try a shorter input."
+                )
             if reasoning and str(reasoning).strip():
                 raise OpenRouterEmptyResponseError(
                     f"The model '{model}' returned reasoning only, with no "
                     "final answer. Pick a different model (set "
                     "OPENROUTER_MODEL) or try again."
-                )
-            if finish_reason == "length":
-                raise OpenRouterTruncatedError(
-                    f"The model '{model}' hit the output token limit "
-                    f"({completion_tokens} tokens generated) before producing "
-                    "any usable content. Try a shorter input."
                 )
             raise OpenRouterEmptyResponseError(
                 f"The model '{model}' returned an empty response. "
