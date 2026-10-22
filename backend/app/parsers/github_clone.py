@@ -114,18 +114,30 @@ class ClonedRepo(AbstractContextManager):
 
 
 def _is_github_url(url: str) -> bool:
+    """True only for github.com repository URLs (SSRF guard).
+
+    git will happily follow redirects and URL tricks, so we require an exact
+    host match on the first path segment: no userinfo (``user@host``), no
+    lookalike hosts (``github.com.evil``), no embedded github.com elsewhere.
+    """
     url = url.strip()
     if not url:
         return False
     lower = url.lower()
-    # Accept https://github.com/... and git@github.com:...
-    if lower.startswith("https://github.com/") or lower.startswith("http://github.com/"):
-        return True
+
     if lower.startswith("git@github.com:"):
+        # SSH scp-style syntax; reject anything after the host that isn't a
+        # path separator already handled above.
         return True
-    # Also accept github.com shorthand used by some tools.
-    if lower.startswith("github.com/"):
-        return True
+
+    for scheme in ("https://github.com/", "http://github.com/", "github.com/"):
+        if lower.startswith(scheme):
+            rest = lower[len(scheme):]
+            # Reject userinfo tricks like github.com@evil/... — after the
+            # required slash, the next segment must not reintroduce a host.
+            if "@" in rest.split("/", 1)[0]:
+                return False
+            return True
     return False
 
 

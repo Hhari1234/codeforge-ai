@@ -279,31 +279,65 @@ class OpenRouterClient:
             )
 
         choice = choices[0]
-        content = (choice.get("message") or {}).get("content")
+        message = choice.get("message") or {}
+        content = message.get("content")
+        finish_reason = choice.get("finish_reason")
+        usage = data.get("usage") or {}
+        completion_tokens = usage.get("completion_tokens")
+        # Reasoning models (o-style, deepseek-r1, etc.) may put their whole
+        # answer in `reasoning_content` and leave `content` null/empty. That is
+        # a real provider failure mode for us — we need final content, not
+        # chain-of-thought — so detect it explicitly instead of reporting a
+        # generic "empty response".
+        reasoning = message.get("reasoning_content") or message.get("reasoning")
+
         if content is None or not str(content).strip():
-            finish_reason = choice.get("finish_reason")
             logger.error(
                 "OpenRouter returned empty content for model '%s' "
-                "(finish_reason=%s). Full response: %s",
+                "(finish_reason=%s, completion_tokens=%s, has_reasoning=%s). "
+                "Response prefix: %s",
                 model,
                 finish_reason,
-                response.text[:1000],
+                completion_tokens,
+                bool(reasoning),
+                response.text[:300],
             )
+            if reasoning and str(reasoning).strip():
+                raise OpenRouterEmptyResponseError(
+                    f"The model '{model}' returned reasoning only, with no "
+                    "final answer. Pick a different model (set "
+                    "OPENROUTER_MODEL) or try again."
+                )
+            if finish_reason == "length":
+                raise OpenRouterTruncatedError(
+                    f"The model '{model}' hit the output token limit "
+                    f"({completion_tokens} tokens generated) before producing "
+                    "any usable content. Try a shorter input."
+                )
             raise OpenRouterEmptyResponseError(
                 f"The model '{model}' returned an empty response. "
                 "Try again, or rephrase with a more specific input."
             )
 
-        if choice.get("finish_reason") == "length":
+        if finish_reason == "length":
             # Content exists but was cut off by the token limit; callers that
             # need complete JSON will fail schema validation with a clear error.
             logger.warning(
                 "OpenRouter completion for model '%s' was truncated at the "
-                "output token limit (%d tokens).",
+                "output token limit (backend cap %d, completion_tokens=%s).",
                 model,
                 settings.OPENROUTER_MAX_TOKENS,
+                completion_tokens,
             )
 
+        logger.info(
+            "OpenRouter completion model='%s' finish_reason=%s "
+            "completion_tokens=%s content_chars=%d",
+            model,
+            finish_reason,
+            completion_tokens,
+            len(str(content)),
+        )
         return str(content)
 
 
