@@ -42,7 +42,11 @@ async def run_repository_chat(
     question: str,
     history: list[dict] | None = None,
     persist_directory: str | None = None,
-    k: int = 5,
+    # k=8 (not 5): with the hashing-vectorizer embeddings, a 5-question
+    # code-search benchmark on pallets/itsdangerous put the ground-truth file
+    # inside the top 8 for 5/5 questions vs 3/5 at k=5 (MiniLM parity was 3/5).
+    # 8 bounded chunks (~26 KB) stay well under free-tier context limits.
+    k: int = 8,
 ) -> ChatResult:
     collection_name = get_collection_name(user_id, analysis_id)
 
